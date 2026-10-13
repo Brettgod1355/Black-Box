@@ -122,10 +122,19 @@ public class BlackBoxPlugin extends Plugin
 	private long lastShotAt;
 	private int shotCount;
 	private boolean shotPending;
+	/**
+	 * The bank PIN keypad is showing: no clicks, game values or screenshots are recorded until it closes.
+	 * Read by the frame listener, which may not run on the client thread.
+	 */
+	private volatile boolean pinPause;
 	private long shotRequestedAt;
 	/** A frame that never arrives (a minimized window) must not block screenshots for good. */
 	private static final long SHOT_GIVE_UP_MILLIS = 5_000;
 
+	/**
+	 * The only key Black Box listens for. It never records keys: a general key listener would capture a bank PIN
+	 * typed on the number pad, and passwords.
+	 */
 	private final HotkeyListener markListener = new HotkeyListener(() -> config.markHotkey())
 	{
 		@Override
@@ -185,6 +194,7 @@ public class BlackBoxPlugin extends Plugin
 		session = started;
 		shotCount = 0;
 		lastShotAt = 0;
+		pinPause = pinShowing();
 		JsonObject header = started.line("session", client.getTickCount(), now);
 		header.addProperty("format", SessionLog.FORMAT);
 		header.addProperty("blackBox", VERSION);
@@ -192,6 +202,10 @@ public class BlackBoxPlugin extends Plugin
 		header.addProperty("world", client.getWorld());
 		header.addProperty("started", name);
 		started.add(header);
+		if (pinPause)
+		{
+			pinLine(started, "pause", now);
+		}
 		executor.execute(() ->
 		{
 			try
@@ -280,6 +294,8 @@ public class BlackBoxPlugin extends Plugin
 		{
 			return;
 		}
+		// The keypad's load and close events cover this; a tick re-check catches anything they miss.
+		setPinPause(pinShowing());
 		JsonObject o = line("tick");
 		Player me = client.getLocalPlayer();
 		if (me != null)
@@ -303,7 +319,7 @@ public class BlackBoxPlugin extends Plugin
 		session.add(o);
 
 		int every = config.shotEverySeconds();
-		if (every > 0 && System.currentTimeMillis() - lastShotAt >= every * 1000L)
+		if (every > 0 && !pinPause && System.currentTimeMillis() - lastShotAt >= every * 1000L)
 		{
 			shoot("timer");
 		}
@@ -405,7 +421,7 @@ public class BlackBoxPlugin extends Plugin
 	@Subscribe
 	public void onVarbitChanged(VarbitChanged event)
 	{
-		if (session == null)
+		if (session == null || pinPause)
 		{
 			return;
 		}
@@ -465,11 +481,19 @@ public class BlackBoxPlugin extends Plugin
 			o.addProperty("interface", event.getGroupId());
 			session.add(o);
 		}
+		if (Privacy.isPinKeypad(event.getGroupId()))
+		{
+			setPinPause(true);
+		}
 	}
 
 	@Subscribe
 	public void onWidgetClosed(WidgetClosed event)
 	{
+		if (Privacy.isPinKeypad(event.getGroupId()))
+		{
+			setPinPause(false);
+		}
 		if (session != null)
 		{
 			JsonObject o = line("close");
@@ -481,7 +505,9 @@ public class BlackBoxPlugin extends Plugin
 	@Subscribe
 	public void onMenuOptionClicked(MenuOptionClicked event)
 	{
-		if (session == null)
+		// While the bank PIN keypad shows, a click says which button was pressed, and a screenshot shows which
+		// digit is on it: together they give the PIN away. Keypresses that enter a PIN can arrive as clicks too.
+		if (session == null || pinPause)
 		{
 			return;
 		}
@@ -584,6 +610,36 @@ public class BlackBoxPlugin extends Plugin
 		session.add(o);
 	}
 
+	// ---- The bank PIN ----
+
+	/** Whether the bank PIN keypad is on screen. Client thread only. */
+	private boolean pinShowing()
+	{
+		Widget keypad = client.getWidget(InterfaceID.BankpinKeypad.UNIVERSE);
+		return keypad != null && !keypad.isHidden();
+	}
+
+	/** Starts or ends the pause, writing a line when it changes. Client thread only. */
+	private void setPinPause(boolean paused)
+	{
+		if (paused == pinPause)
+		{
+			return;
+		}
+		pinPause = paused;
+		if (session != null)
+		{
+			pinLine(session, paused ? "pause" : "resume", System.currentTimeMillis());
+		}
+	}
+
+	private void pinLine(SessionLog target, String kind, long now)
+	{
+		JsonObject o = target.line(kind, client.getTickCount(), now);
+		o.addProperty("why", "bank PIN");
+		target.add(o);
+	}
+
 	// ---- Screenshots ----
 
 	/**
@@ -594,7 +650,7 @@ public class BlackBoxPlugin extends Plugin
 	{
 		SessionLog target = session;
 		long now = System.currentTimeMillis();
-		if (target == null || (shotPending && now - shotRequestedAt < SHOT_GIVE_UP_MILLIS))
+		if (target == null || pinPause || (shotPending && now - shotRequestedAt < SHOT_GIVE_UP_MILLIS))
 		{
 			return;
 		}
@@ -613,7 +669,8 @@ public class BlackBoxPlugin extends Plugin
 		{
 			try
 			{
-				BufferedImage small = shrink(image, maxWidth, chat, canvasWidth);
+				// The keypad may have opened between the request and this frame: such a frame is never saved.
+				BufferedImage small = pinPause ? null : shrink(image, maxWidth, chat, canvasWidth);
 				if (small != null)
 				{
 					executor.execute(() -> writeShot(target, file, small));

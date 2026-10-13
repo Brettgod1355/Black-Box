@@ -16,13 +16,16 @@ It only loads in RuneLite's developer mode. It is not meant for the Plugin Hub.
   broadcasts, other players' overhead text, hits on other players, and the names on clicks aimed at
   players. Your own name is replaced by `<you>` wherever the game writes it. Screenshots black out the chat
   box by default.
+- It never records your bank PIN. While the bank PIN keypad is on screen, no clicks, game values or
+  screenshots are recorded, so neither a clicked button nor a picture of the shuffled keypad ends up in a
+  recording. It never listens to your keyboard either, except for the Mark hotkey, so a PIN typed on the
+  number pad is not recorded.
 
 ## Using it
 
-1. Start a developer client with Black Box loaded, either way:
-   - `./gradlew run` in this repository starts a client with only Black Box.
-   - To record while testing another plugin, add Black Box to that plugin's own launcher in its test
-     sources: `ExternalPluginManager.loadBuiltin(YourPlugin.class, BlackBoxPlugin.class);`
+1. Start a developer client with Black Box loaded: `./gradlew run` in this repository starts a client with
+   only Black Box. Never add Black Box to another plugin's launcher or build: that plugin would then need
+   Black Box to build at all.
 2. In Black Box's settings, turn on **Record**. A new recording starts each time you log in, in
    `.runelite/plugin-data/black-box/<date and time>/`.
 3. Play as you normally would. Set a **Mark hotkey** to flag a moment worth a look later.
@@ -76,6 +79,7 @@ per line, in the order things happened. Every line has `e` (what happened), `tic
 | `state` | `state` |
 | `shot` | `file`, `reason` (`timer`, `notify` or `mark`) |
 | `mark` | |
+| `pause`, `resume` | `why` (`bank PIN`): no `click`, `var` or `shot` lines in between. A `shot` just before a `pause` may have no file: its frame came after the keypad opened |
 | `end` | `why` |
 
 ## Replaying in another plugin's tests

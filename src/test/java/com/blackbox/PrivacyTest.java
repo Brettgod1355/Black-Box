@@ -7,6 +7,7 @@ package com.blackbox;
 
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.MenuAction;
+import net.runelite.api.gameval.InterfaceID;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -52,5 +53,13 @@ public class PrivacyTest
 		assertFalse(Privacy.targetsPlayer(MenuAction.GAME_OBJECT_FIRST_OPTION));
 		assertFalse(Privacy.targetsPlayer(MenuAction.NPC_FIRST_OPTION));
 		assertFalse(Privacy.targetsPlayer(null));
+	}
+
+	@Test
+	public void theBankPinKeypadPausesRecording()
+	{
+		assertTrue(Privacy.isPinKeypad(InterfaceID.BANKPIN_KEYPAD));
+		assertTrue(Privacy.isPinKeypad(213));
+		assertFalse(Privacy.isPinKeypad(InterfaceID.BANKMAIN));
 	}
 }

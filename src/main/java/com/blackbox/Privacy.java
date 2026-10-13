@@ -12,6 +12,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.MenuAction;
+import net.runelite.api.gameval.InterfaceID;
 
 /**
  * What a recording may hold about people. Recordings are meant to be shared with whoever helps test a
@@ -46,6 +47,16 @@ final class Privacy
 	static boolean recordsChat(ChatMessageType type)
 	{
 		return type != null && RECORDED_CHAT.contains(type);
+	}
+
+	/**
+	 * The bank PIN keypad, which also opens when a PIN is set or changed. While it shows, clicks, game values and
+	 * screenshots are not recorded: the clicked button and a picture of the shuffled keypad would give the PIN
+	 * away.
+	 */
+	static boolean isPinKeypad(int groupId)
+	{
+		return groupId == InterfaceID.BANKPIN_KEYPAD;
 	}
 
 	/**
