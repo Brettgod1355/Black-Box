@@ -1,0 +1,7 @@
+{"e":"session","tick":100,"ms":0,"format":1,"blackBox":"0.1","runelite":"1.13.1","world":444,"started":"2026-10-13_10-00-00"}
+{"e":"tick","tick":101,"ms":600,"wv":7,"x":12,"y":9,"plane":0,"anim":-1,"topX":1801,"topY":4001,"topPlane":0}
+{"e":"items","tick":101,"ms":610,"container":93,"items":[[32847,1],[-1,0]]}
+{"e":"chat","tick":102,"ms":1200,"type":"GAMEMESSAGE","text":"<you> salvages some debris."}
+
+{"e":"notify","tick":102,"ms":1210,"text":"Your cargo hold is full (160/160)."}
+{"e":"end","tick":103,"ms":1800,"why":"logged out"}
