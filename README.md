@@ -20,6 +20,9 @@ It only loads in RuneLite's developer mode. It is not meant for the Plugin Hub.
   screenshots are recorded, so neither a clicked button nor a picture of the shuffled keypad ends up in a
   recording. It never listens to your keyboard either, except for the Mark hotkey, so a PIN typed on the
   number pad is not recorded.
+- It never records the login screen. A recording starts once you are logged in and ends when you log out,
+  and a screenshot whose frame is drawn after that, on the login screen, while logging in, hopping worlds
+  or with the connection lost, is thrown away.
 
 ## Using it
 
@@ -79,7 +82,7 @@ per line, in the order things happened. Every line has `e` (what happened), `tic
 | `state` | `state` |
 | `shot` | `file`, `reason` (`timer`, `notify` or `mark`) |
 | `mark` | |
-| `pause`, `resume` | `why` (`bank PIN`): no `click`, `var` or `shot` lines in between. A `shot` just before a `pause` may have no file: its frame came after the keypad opened |
+| `pause`, `resume` | `why` (`bank PIN`): no `click`, `var` or `shot` lines in between. A `shot` just before a `pause` may have no file: its frame came after the keypad opened. The same goes for a `shot` just before logging out or hopping |
 | `end` | `why` |
 
 ## Replaying in another plugin's tests

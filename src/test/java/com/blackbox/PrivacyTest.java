@@ -6,6 +6,7 @@
 package com.blackbox;
 
 import net.runelite.api.ChatMessageType;
+import net.runelite.api.GameState;
 import net.runelite.api.MenuAction;
 import net.runelite.api.gameval.InterfaceID;
 import org.junit.Test;
@@ -61,5 +62,20 @@ public class PrivacyTest
 		assertTrue(Privacy.isPinKeypad(InterfaceID.BANKPIN_KEYPAD));
 		assertTrue(Privacy.isPinKeypad(213));
 		assertFalse(Privacy.isPinKeypad(InterfaceID.BANKMAIN));
+	}
+
+	@Test
+	public void framesAreKeptOnlyInTheGameWorld()
+	{
+		assertTrue(Privacy.mayKeepFrame(GameState.LOGGED_IN));
+		assertTrue(Privacy.mayKeepFrame(GameState.LOADING));
+		for (GameState state : GameState.values())
+		{
+			if (state != GameState.LOGGED_IN && state != GameState.LOADING)
+			{
+				assertFalse(state.name(), Privacy.mayKeepFrame(state));
+			}
+		}
+		assertFalse(Privacy.mayKeepFrame(null));
 	}
 }

@@ -669,8 +669,10 @@ public class BlackBoxPlugin extends Plugin
 		{
 			try
 			{
-				// The keypad may have opened between the request and this frame: such a frame is never saved.
-				BufferedImage small = pinPause ? null : shrink(image, maxWidth, chat, canvasWidth);
+				// The keypad may have opened between the request and this frame, or the player logged out (the
+				// recording then ended and the frame may show the login screen): such a frame is never saved.
+				boolean keep = !pinPause && session == target && Privacy.mayKeepFrame(client.getGameState());
+				BufferedImage small = keep ? shrink(image, maxWidth, chat, canvasWidth) : null;
 				if (small != null)
 				{
 					executor.execute(() -> writeShot(target, file, small));
