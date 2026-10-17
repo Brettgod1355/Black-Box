@@ -51,6 +51,18 @@ public interface BlackBoxConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "recordSounds",
+		name = "Sound effects",
+		description = "Record the id of each sound effect the game plays, so a replay can use what a plugin hears. "
+			+ "Only while the game's sound effects are on. Nothing about other players is recorded with it.",
+		position = 3
+	)
+	default boolean recordSounds()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "shotEverySeconds",
 		name = "Every",
 		description = "Take a screenshot this often while recording. 0 turns the timer off.",

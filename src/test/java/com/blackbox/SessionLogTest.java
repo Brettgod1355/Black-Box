@@ -45,7 +45,7 @@ public class SessionLogTest
 
 		Recording r = Recording.read(tmp.resolve("2026-10-13_10-00-00").resolve(SessionLog.EVENTS_FILE));
 		assertEquals(3, r.lines().size());
-		assertEquals(1, r.format());
+		assertEquals(SessionLog.FORMAT, r.format());
 		assertEquals("quotes \" and\nnew lines survive", r.of("chat").get(0).text("text"));
 		assertEquals(600, r.of("chat").get(0).ms());
 		assertEquals(102, r.of("end").get(0).tick());

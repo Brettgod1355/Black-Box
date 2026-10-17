@@ -18,8 +18,11 @@ import net.runelite.client.util.Filepath;
  */
 final class SessionLog
 {
-	/** Bumped whenever a line's shape changes in a way a reader must know about. */
-	static final int FORMAT = 1;
+	/**
+	 * Bumped whenever a line's shape changes in a way a reader must know about, or a line kind is added that a
+	 * reader may want to rely on. 1: the 0.1 lines. 2: {@code sound} lines.
+	 */
+	static final int FORMAT = 2;
 	static final String EVENTS_FILE = "events.jsonl";
 	static final String SHOTS_DIR = "shots";
 

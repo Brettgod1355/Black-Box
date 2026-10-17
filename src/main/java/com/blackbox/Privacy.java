@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.runelite.api.ChatMessageType;
+import net.runelite.api.GameState;
 import net.runelite.api.MenuAction;
 import net.runelite.api.gameval.InterfaceID;
 
@@ -57,6 +58,17 @@ final class Privacy
 	static boolean isPinKeypad(int groupId)
 	{
 		return groupId == InterfaceID.BANKPIN_KEYPAD;
+	}
+
+	/**
+	 * Whether a frame drawn in this game state may be saved as a screenshot: only while logged in or loading
+	 * the next area. A screenshot asked for just before logging out can be drawn on the login screen, which
+	 * shows the character's name; that frame, and any other drawn on the login screen, while logging in,
+	 * hopping or with the connection lost, is never saved.
+	 */
+	static boolean mayKeepFrame(GameState state)
+	{
+		return state == GameState.LOGGED_IN || state == GameState.LOADING;
 	}
 
 	/**
