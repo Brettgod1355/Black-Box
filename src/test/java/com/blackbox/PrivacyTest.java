@@ -38,10 +38,15 @@ public class PrivacyTest
 	@Test
 	public void theOwnNameIsReplacedHoweverTheGameSpellsTheGap()
 	{
-		assertEquals("<you> has a full cargo hold.", Privacy.scrub("Air Marshal has a full cargo hold.", "Air Marshal"));
-		assertEquals("Well done, <you>!", Privacy.scrub("Well done, air marshal!", "Air Marshal"));
-		assertEquals("<you> and <you>", Privacy.scrub("Air_Marshal and AIR-MARSHAL", "Air Marshal"));
-		assertEquals("Airship Marshal stays", Privacy.scrub("Airship Marshal stays", "Air Marshal"));
+		// Made-up names only: the plugin scrubs whoever is logged in. Cow31337Killer is the game's own joke NPC.
+		assertEquals("<you> has a full cargo hold.", Privacy.scrub("Cow31337Killer has a full cargo hold.", "Cow31337Killer"));
+		assertEquals("Well done, <you>!", Privacy.scrub("Well done, cow31337killer!", "Cow31337Killer"));
+		// A name with a gap, which the game writes as a space, a non-breaking space (second line), an underscore or a
+		// hyphen; a near miss stays.
+		assertEquals("<you> has a full cargo hold.", Privacy.scrub("Salty Pete has a full cargo hold.", "Salty Pete"));
+		assertEquals("Well done, <you>!", Privacy.scrub("Well done, salty pete!", "Salty Pete"));
+		assertEquals("<you> and <you>", Privacy.scrub("Salty_Pete and SALTY-PETE", "Salty Pete"));
+		assertEquals("Saltwater Pete stays", Privacy.scrub("Saltwater Pete stays", "Salty Pete"));
 		assertEquals("no name known", Privacy.scrub("no name known", null));
 		assertEquals("a $ and \\ survive", Privacy.scrub("a $ and \\ survive", "Bob"));
 	}
