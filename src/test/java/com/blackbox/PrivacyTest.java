@@ -38,10 +38,12 @@ public class PrivacyTest
 	@Test
 	public void theOwnNameIsReplacedHoweverTheGameSpellsTheGap()
 	{
-		assertEquals("<you> has a full cargo hold.", Privacy.scrub("Air Marshal has a full cargo hold.", "Air Marshal"));
-		assertEquals("Well done, <you>!", Privacy.scrub("Well done, air marshal!", "Air Marshal"));
-		assertEquals("<you> and <you>", Privacy.scrub("Air_Marshal and AIR-MARSHAL", "Air Marshal"));
-		assertEquals("Airship Marshal stays", Privacy.scrub("Airship Marshal stays", "Air Marshal"));
+		// A made-up name: the plugin scrubs whoever is logged in, so any two-word name proves it. The second line
+		// spells the gap with a non-breaking space, as the game does.
+		assertEquals("<you> has a full cargo hold.", Privacy.scrub("Salty Pete has a full cargo hold.", "Salty Pete"));
+		assertEquals("Well done, <you>!", Privacy.scrub("Well done, salty pete!", "Salty Pete"));
+		assertEquals("<you> and <you>", Privacy.scrub("Salty_Pete and SALTY-PETE", "Salty Pete"));
+		assertEquals("Saltwater Pete stays", Privacy.scrub("Saltwater Pete stays", "Salty Pete"));
 		assertEquals("no name known", Privacy.scrub("no name known", null));
 		assertEquals("a $ and \\ survive", Privacy.scrub("a $ and \\ survive", "Bob"));
 	}
