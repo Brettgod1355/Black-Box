@@ -49,6 +49,7 @@ import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.NpcDespawned;
 import net.runelite.api.events.NpcSpawned;
 import net.runelite.api.events.OverheadTextChanged;
+import net.runelite.api.events.SoundEffectPlayed;
 import net.runelite.api.events.StatChanged;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.events.WidgetClosed;
@@ -469,6 +470,32 @@ public class BlackBoxPlugin extends Plugin
 		}
 		o.addProperty("amount", event.getHitsplat().getAmount());
 		o.addProperty("type", event.getHitsplat().getHitsplatType());
+		session.add(o);
+	}
+
+	@Subscribe
+	public void onSoundEffectPlayed(SoundEffectPlayed event)
+	{
+		// The client only raises this while the game's sound effects are on. A sound id says nothing about
+		// anyone, but while the keypad shows nothing is recorded at all.
+		if (session == null || pinPause || !config.recordSounds())
+		{
+			return;
+		}
+		JsonObject o = line("sound");
+		o.addProperty("id", event.getSoundId());
+		o.addProperty("delay", event.getDelay());
+		Actor source = event.getSource();
+		if (source != null && source == client.getLocalPlayer())
+		{
+			o.addProperty("from", Privacy.YOU);
+		}
+		else if (source instanceof NPC)
+		{
+			o.addProperty("npc", ((NPC) source).getId());
+			o.addProperty("index", ((NPC) source).getIndex());
+		}
+		// Another player as the source is left out, like everything else about other players.
 		session.add(o);
 	}
 
