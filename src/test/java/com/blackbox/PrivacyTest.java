@@ -38,8 +38,11 @@ public class PrivacyTest
 	@Test
 	public void theOwnNameIsReplacedHoweverTheGameSpellsTheGap()
 	{
-		// A made-up name: the plugin scrubs whoever is logged in, so any two-word name proves it. The second line
-		// spells the gap with a non-breaking space, as the game does.
+		// Made-up names only: the plugin scrubs whoever is logged in. Cow31337Killer is the game's own joke NPC.
+		assertEquals("<you> has a full cargo hold.", Privacy.scrub("Cow31337Killer has a full cargo hold.", "Cow31337Killer"));
+		assertEquals("Well done, <you>!", Privacy.scrub("Well done, cow31337killer!", "Cow31337Killer"));
+		// A name with a gap, which the game writes as a space, a non-breaking space (second line), an underscore or a
+		// hyphen; a near miss stays.
 		assertEquals("<you> has a full cargo hold.", Privacy.scrub("Salty Pete has a full cargo hold.", "Salty Pete"));
 		assertEquals("Well done, <you>!", Privacy.scrub("Well done, salty pete!", "Salty Pete"));
 		assertEquals("<you> and <you>", Privacy.scrub("Salty_Pete and SALTY-PETE", "Salty Pete"));
