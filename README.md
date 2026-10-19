@@ -46,8 +46,8 @@ miss and refused the wrong fixes before they shipped. The worked example below t
 
 Black Box keeps the client's frames per second from the moment it loads, recording or not, and marks the moments
 worth lining up against it: a plugin switched on or off, a setting changed (which one, never its value), a mark, a
-notification, a login or logout. The **sidebar** (the chart icon) shows the current reading, the last minute's low,
-mean and high, and a small chart. **Click the chart** to open it in its own window: a larger chart, a time range
+notification, a login or logout. The **sidebar** (the chart icon) shows the current reading, the low, mean and high
+over the last 1, 5, 10 and 15 minutes (dimmed until the client has run that long), and a small chart of the last minute. **Click the chart** to open it in its own window: a larger chart, a time range
 from one minute to everything, every marked moment listed on the right (click one to jump to it), and the choice of
 any past recording in the Black Box folder, with a slider to scrub through it. That is how to see what a plugin or a
 setting does to the frame rate: toggle it while watching, or record a session and read it back later.
