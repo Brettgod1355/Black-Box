@@ -5,6 +5,7 @@
  */
 package com.blackbox;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.inject.Provides;
@@ -14,6 +15,7 @@ import java.awt.Image;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.time.LocalDateTime;
@@ -25,6 +27,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.swing.SwingUtilities;
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import net.runelite.api.Actor;
@@ -64,13 +67,17 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.events.NotificationFired;
+import net.runelite.client.events.PluginChanged;
 import net.runelite.client.events.PluginMessage;
 import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.DrawManager;
+import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.Filepath;
 import net.runelite.client.util.HotkeyListener;
+import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,7 +102,7 @@ public class BlackBoxPlugin extends Plugin
 	private static final Logger log = LoggerFactory.getLogger(BlackBoxPlugin.class);
 
 	/** The version written into every recording's first line. */
-	static final String VERSION = "0.1";
+	static final String VERSION = "0.2";
 
 	private static final DateTimeFormatter SESSION_NAME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 	private static final long BYTES_PER_MEGABYTE = 1024L * 1024;
@@ -117,6 +124,18 @@ public class BlackBoxPlugin extends Plugin
 
 	@Inject
 	private ScheduledExecutorService executor;
+
+	@Inject
+	private ClientToolbar clientToolbar;
+
+	@Inject
+	private Gson gson;
+
+	/** Frames per second since the plugin started, recording or not: what the sidebar and the window show live. */
+	private final FpsSeries live = new FpsSeries("Live", FpsSeries.LIVE_CAPACITY);
+	private FpsPanel panel;
+	private NavigationButton navButton;
+	private FpsWindow window;
 
 	private SessionLog session;
 	private ScheduledFuture<?> flushTask;
@@ -156,6 +175,14 @@ public class BlackBoxPlugin extends Plugin
 	{
 		keyManager.registerKeyListener(markListener);
 		flushTask = executor.scheduleWithFixedDelay(this::flushQuietly, 1, 1, TimeUnit.SECONDS);
+		panel = new FpsPanel(live, this::openFpsWindow);
+		navButton = NavigationButton.builder()
+			.tooltip("Black Box: frames per second")
+			.icon(ImageUtil.loadImageResource(getClass(), "fps.png"))
+			.priority(10)
+			.panel(panel)
+			.build();
+		clientToolbar.addNavigation(navButton);
 		clientThread.invoke(this::startIfWanted);
 	}
 
@@ -163,6 +190,24 @@ public class BlackBoxPlugin extends Plugin
 	protected void shutDown()
 	{
 		keyManager.unregisterKeyListener(markListener);
+		if (navButton != null)
+		{
+			clientToolbar.removeNavigation(navButton);
+			navButton = null;
+		}
+		if (panel != null)
+		{
+			panel.stop();
+			panel = null;
+		}
+		SwingUtilities.invokeLater(() ->
+		{
+			if (window != null)
+			{
+				window.dispose();
+				window = null;
+			}
+		});
 		stop("plugin stopped");
 		if (flushTask != null)
 		{
@@ -249,19 +294,51 @@ public class BlackBoxPlugin extends Plugin
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
-		if (!BlackBoxConfig.GROUP.equals(event.getGroup()) || !"record".equals(event.getKey()))
-		{
-			return;
-		}
+		// Which setting changed, never its value: a value can be a webhook link or an API key (WORKING_RULES §4).
+		// Not a game value, so the bank PIN pause does not apply; a setting says nothing about the keypad.
+		String group = event.getGroup();
+		String key = event.getKey();
+		long now = System.currentTimeMillis();
+		live.note(now, "setting", group + "." + key);
 		clientThread.invoke(() ->
 		{
-			if (config.record())
+			if (session != null)
 			{
-				startIfWanted();
+				JsonObject o = session.line("setting", client.getTickCount(), now);
+				o.addProperty("group", group);
+				o.addProperty("key", key);
+				session.add(o);
 			}
-			else
+			if (BlackBoxConfig.GROUP.equals(group) && "record".equals(key))
 			{
-				stop("recording switched off");
+				if (config.record())
+				{
+					startIfWanted();
+				}
+				else
+				{
+					stop("recording switched off");
+				}
+			}
+		});
+	}
+
+	@Subscribe
+	public void onPluginChanged(PluginChanged event)
+	{
+		// A plugin switched on or off: the moment to line up against the frame rate. Not a game value either.
+		String name = event.getPlugin() == null ? "?" : event.getPlugin().getName();
+		boolean on = event.isLoaded();
+		long now = System.currentTimeMillis();
+		live.note(now, "plugin", name + (on ? " on" : " off"));
+		clientThread.invoke(() ->
+		{
+			if (session != null)
+			{
+				JsonObject o = session.line("plugin", client.getTickCount(), now);
+				o.addProperty("name", name);
+				o.addProperty("on", on);
+				session.add(o);
 			}
 		});
 	}
@@ -270,6 +347,7 @@ public class BlackBoxPlugin extends Plugin
 	public void onGameStateChanged(GameStateChanged event)
 	{
 		GameState state = event.getGameState();
+		live.note(System.currentTimeMillis(), "state", state.name());
 		if (session != null)
 		{
 			JsonObject o = line("state");
@@ -291,6 +369,8 @@ public class BlackBoxPlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
+		int fps = client.getFPS();
+		live.add(System.currentTimeMillis(), fps);
 		if (session == null)
 		{
 			return;
@@ -298,6 +378,7 @@ public class BlackBoxPlugin extends Plugin
 		// The keypad's load and close events cover this; a tick re-check catches anything they miss.
 		setPinPause(pinShowing());
 		JsonObject o = line("tick");
+		o.addProperty("fps", fps);
 		Player me = client.getLocalPlayer();
 		if (me != null)
 		{
@@ -560,7 +641,9 @@ public class BlackBoxPlugin extends Plugin
 			return;
 		}
 		JsonObject o = line("notify");
-		o.addProperty("text", scrub(event.getMessage()));
+		String text = scrub(event.getMessage());
+		o.addProperty("text", text);
+		live.note(System.currentTimeMillis(), "notify", text);
 		session.add(o);
 		if (config.shotOnNotification())
 		{
@@ -585,6 +668,7 @@ public class BlackBoxPlugin extends Plugin
 	/** The hotkey: a mark in the recording, and a screenshot when screenshots are on. */
 	private void mark()
 	{
+		live.note(System.currentTimeMillis(), "mark", "Mark");
 		if (session == null)
 		{
 			return;
@@ -635,6 +719,59 @@ public class BlackBoxPlugin extends Plugin
 		o.addProperty("config", entity.getConfig() == null ? -1 : entity.getConfig().getId());
 		o.addProperty("owner", entity.getOwnerType());
 		session.add(o);
+	}
+
+	// ---- Frames per second ----
+
+	/** Opens (or raises) the chart window. Any thread. */
+	private void openFpsWindow()
+	{
+		SwingUtilities.invokeLater(() ->
+		{
+			if (window == null)
+			{
+				window = new FpsWindow(live, new RecordingSource(), executor);
+			}
+			// Hiding first makes a window that is already open come to the front without raising it ourselves,
+			// which the Hub's window rule forbids even for a plugin's own frame (this repository stays Hub-ready).
+			if (window.isVisible())
+			{
+				window.setVisible(false);
+			}
+			window.setVisible(true);
+		});
+	}
+
+	/** Past recordings in the plugin's own folder, newest first, for the window. Executor thread. */
+	private final class RecordingSource implements FpsWindow.Source
+	{
+		@Override
+		public List<String> recordings() throws IOException
+		{
+			Filepath root = getPluginDirectory();
+			List<String> names = new ArrayList<>();
+			try (Stream<Filepath> entries = root.walk(1))
+			{
+				for (Filepath dir : entries.filter(p -> !p.equals(root) && p.isDirectory()).collect(Collectors.toList()))
+				{
+					if (dir.join(SessionLog.EVENTS_FILE).isFile())
+					{
+						names.add(dir.getFileName());
+					}
+				}
+			}
+			names.sort(java.util.Comparator.reverseOrder());
+			return names;
+		}
+
+		@Override
+		public FpsSeries load(String name) throws IOException
+		{
+			try (BufferedReader in = getPluginDirectory().join(name, SessionLog.EVENTS_FILE).openBufferedReader())
+			{
+				return FpsSeries.fromRecording(name, gson, in);
+			}
+		}
 	}
 
 	// ---- The bank PIN ----

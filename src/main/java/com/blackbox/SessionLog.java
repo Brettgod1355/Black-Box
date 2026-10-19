@@ -20,9 +20,10 @@ final class SessionLog
 {
 	/**
 	 * Bumped whenever a line's shape changes in a way a reader must know about, or a line kind is added that a
-	 * reader may want to rely on. 1: the 0.1 lines. 2: {@code sound} lines.
+	 * reader may want to rely on. 1: the 0.1 lines. 2: {@code sound} lines. 3: {@code fps} on every {@code tick}
+	 * line, and {@code plugin} (name, on) and {@code setting} (group, key; never the value) lines.
 	 */
-	static final int FORMAT = 2;
+	static final int FORMAT = 3;
 	static final String EVENTS_FILE = "events.jsonl";
 	static final String SHOTS_DIR = "shots";
 

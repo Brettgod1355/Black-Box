@@ -42,6 +42,18 @@ miss and refused the wrong fixes before they shipped. The worked example below t
 3. Play as you normally would. Set a **Mark hotkey** to flag a moment worth a look later.
 4. Turn **Record** off, or log out, to finish.
 
+## Frames per second
+
+Black Box keeps the client's frames per second from the moment it loads, recording or not, and marks the moments
+worth lining up against it: a plugin switched on or off, a setting changed (which one, never its value), a mark, a
+notification, a login or logout. The **sidebar** (the chart icon) shows the current reading, the last minute's low,
+mean and high, and a small chart. **Click the chart** to open it in its own window: a larger chart, a time range
+from one minute to everything, every marked moment listed on the right (click one to jump to it), and the choice of
+any past recording in the Black Box folder, with a slider to scrub through it. That is how to see what a plugin or a
+setting does to the frame rate: toggle it while watching, or record a session and read it back later.
+
+In a recording, every `tick` line carries `fps`, and `plugin` and `setting` lines say what was toggled when.
+
 ## Settings
 
 | Setting | Default | What it does |
