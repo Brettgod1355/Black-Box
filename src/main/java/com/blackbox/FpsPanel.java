@@ -22,8 +22,8 @@ import net.runelite.client.ui.PluginPanel;
 
 /**
  * The sidebar: the current frames per second, the low, mean and high over the last 1, 5, 10 and 15 minutes,
- * and a small chart of the live series. A click on the chart opens {@link FpsWindow}. Refreshes only while
- * the panel is showing.
+ * a small chart of the live series, and below it whatever the plugin puts there (the watched plugins). A click
+ * on the chart opens {@link FpsWindow}. Refreshes only while the panel is showing.
  */
 class FpsPanel extends PluginPanel
 {
@@ -37,9 +37,9 @@ class FpsPanel extends PluginPanel
 	private final JLabel[][] history = new JLabel[SPANS.length][3];
 	private final Timer timer;
 
-	FpsPanel(FpsSeries live, Runnable openWindow)
+	FpsPanel(FpsSeries live, Runnable openWindow, javax.swing.JComponent below)
 	{
-		super(false);
+		super();
 		this.live = live;
 		setLayout(new BorderLayout(0, 6));
 		setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
@@ -68,10 +68,17 @@ class FpsPanel extends PluginPanel
 		chart.setToolTipText("Click to open the chart in its own window");
 		add(chart, BorderLayout.CENTER);
 
-		JLabel hint = new JLabel("Last minute. Click the chart for its own window and past recordings.");
+		JLabel hint = new JLabel("<html><div style='width:190px'>Last minute. Click the chart for its own window and past recordings.</div></html>");
 		hint.setFont(FontManager.getRunescapeSmallFont());
 		hint.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		add(hint, BorderLayout.SOUTH);
+		JPanel bottom = new JPanel();
+		bottom.setLayout(new BoxLayout(bottom, BoxLayout.Y_AXIS));
+		bottom.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		hint.setAlignmentX(LEFT_ALIGNMENT);
+		bottom.add(hint);
+		below.setAlignmentX(LEFT_ALIGNMENT);
+		bottom.add(below);
+		add(bottom, BorderLayout.SOUTH);
 
 		timer = new Timer(600, e -> refresh());
 		timer.setRepeats(true);

@@ -258,7 +258,10 @@ final class FpsSeries
 					series.note(at, kind, field(o, "name") + (o.has("on") && o.get("on").getAsBoolean() ? " on" : " off"));
 					break;
 				case "setting":
-					series.note(at, kind, field(o, "group") + "." + field(o, "key"));
+					series.note(at, kind, field(o, "group") + "." + field(o, "key") + (o.has("value") ? " = " + field(o, "value") : ""));
+					break;
+				case "watch":
+					series.note(at, kind, "Watching " + (o.has("plugins") ? o.get("plugins").getAsJsonArray().size() : 0) + " plugin(s)");
 					break;
 				case "mark":
 					series.note(at, kind, "Mark");

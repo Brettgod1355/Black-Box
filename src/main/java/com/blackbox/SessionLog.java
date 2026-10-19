@@ -21,9 +21,11 @@ final class SessionLog
 	/**
 	 * Bumped whenever a line's shape changes in a way a reader must know about, or a line kind is added that a
 	 * reader may want to rely on. 1: the 0.1 lines. 2: {@code sound} lines. 3: {@code fps} on every {@code tick}
-	 * line, and {@code plugin} (name, on) and {@code setting} (group, key; never the value) lines.
+	 * line, and {@code plugin} (name, on) and {@code setting} (group, key) lines. 4: {@code watch} (the watched
+	 * plugins) and {@code settings} (a watched plugin's values, secrets withheld) lines; a {@code setting} line of a
+	 * watched plugin carries {@code plugin} and {@code value}.
 	 */
-	static final int FORMAT = 3;
+	static final int FORMAT = 4;
 	static final String EVENTS_FILE = "events.jsonl";
 	static final String SHOTS_DIR = "shots";
 

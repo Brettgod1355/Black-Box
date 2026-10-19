@@ -28,6 +28,8 @@ miss and refused the wrong fixes before they shipped. The worked example below t
   screenshots are recorded, so neither a clicked button nor a picture of the shuffled keypad ends up in a
   recording. It never listens to your keyboard either, except for the Mark hotkey, so a PIN typed on the
   number pad is not recorded.
+- It never records another plugin's setting values unless you put that plugin on the watched list, and even then
+  never a setting marked secret, nor free text that looks like a link or a token.
 - It never records the login screen. A recording starts once you are logged in and ends when you log out,
   and a screenshot whose frame is drawn after that, on the login screen, while logging in, hopping worlds
   or with the connection lost, is thrown away.
@@ -41,6 +43,19 @@ miss and refused the wrong fixes before they shipped. The worked example below t
    `.runelite/plugin-data/black-box/<date and time>/`.
 3. Play as you normally would. Set a **Mark hotkey** to flag a moment worth a look later.
 4. Turn **Record** off, or log out, to finish.
+
+## Watched plugins
+
+Pick the plugin, or plugins, you are working on in the sidebar: **Set** keeps named groups of them (Save, Del),
+**Add a plugin** lists everything installed, and each watched plugin is a row with its on/off dot and a cross to
+stop watching it. While recording, Black Box writes a `watch` line naming the watched plugins and a `settings` line
+per watched plugin with every one of its current settings, and when one of those settings changes the `setting`
+line carries the new value. That is how a recording shows what a plugin's settings were while something happened.
+
+Only watched plugins get their values written. A setting the plugin marks secret is written as `<secret>`, a
+hidden one is left out, and free text that looks like a link or a token (by its content or by its key name) is
+written as `<withheld>`; numbers, on/off switches, choices, colors and keybinds are written as they are. Plugins
+you did not pick keep today's behavior: which setting changed, never its value.
 
 ## Frames per second
 

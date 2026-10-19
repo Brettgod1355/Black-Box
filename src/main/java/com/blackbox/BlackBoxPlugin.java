@@ -21,7 +21,10 @@ import java.io.OutputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -63,6 +66,9 @@ import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.RuneLiteProperties;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.config.Config;
+import net.runelite.client.config.ConfigDescriptor;
+import net.runelite.client.config.ConfigItemDescriptor;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
@@ -72,6 +78,7 @@ import net.runelite.client.events.PluginMessage;
 import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.client.ui.NavigationButton;
@@ -131,6 +138,16 @@ public class BlackBoxPlugin extends Plugin
 	@Inject
 	private Gson gson;
 
+	@Inject
+	private PluginManager pluginManager;
+
+	@Inject
+	private ConfigManager configManager;
+
+	/** The watched plugins' config groups, for the setting lines; client thread. */
+	private final Map<String, Plugin> watchedGroups = new HashMap<>();
+	private WatchPanel watchPanel;
+
 	/** Frames per second since the plugin started, recording or not: what the sidebar and the window show live. */
 	private final FpsSeries live = new FpsSeries("Live", FpsSeries.LIVE_CAPACITY);
 	private FpsPanel panel;
@@ -175,7 +192,9 @@ public class BlackBoxPlugin extends Plugin
 	{
 		keyManager.registerKeyListener(markListener);
 		flushTask = executor.scheduleWithFixedDelay(this::flushQuietly, 1, 1, TimeUnit.SECONDS);
-		panel = new FpsPanel(live, this::openFpsWindow);
+		watchPanel = new WatchPanel(new Watching());
+		panel = new FpsPanel(live, this::openFpsWindow, watchPanel);
+		clientThread.invoke(this::rebuildWatchedGroups);
 		navButton = NavigationButton.builder()
 			.tooltip("Black Box: frames per second")
 			.icon(ImageUtil.loadImageResource(getClass(), "fps.png"))
@@ -252,6 +271,7 @@ public class BlackBoxPlugin extends Plugin
 		{
 			pinLine(started, "pause", now);
 		}
+		writeWatch(started, now);
 		executor.execute(() ->
 		{
 			try
@@ -298,15 +318,27 @@ public class BlackBoxPlugin extends Plugin
 		// Not a game value, so the bank PIN pause does not apply; a setting says nothing about the keypad.
 		String group = event.getGroup();
 		String key = event.getKey();
+		String newValue = event.getNewValue();
 		long now = System.currentTimeMillis();
-		live.note(now, "setting", group + "." + key);
 		clientThread.invoke(() ->
 		{
+			Plugin watched = watchedGroups.get(group);
+			// Only a watched plugin's value, and only through the same withholding as a snapshot.
+			String value = watched == null ? null : valueFor(watched, key, newValue);
+			live.note(now, "setting", group + "." + key + (value == null ? "" : " = " + value));
 			if (session != null)
 			{
 				JsonObject o = session.line("setting", client.getTickCount(), now);
 				o.addProperty("group", group);
 				o.addProperty("key", key);
+				if (watched != null)
+				{
+					o.addProperty("plugin", watched.getName());
+					if (value != null)
+					{
+						o.addProperty("value", value);
+					}
+				}
 				session.add(o);
 			}
 			if (BlackBoxConfig.GROUP.equals(group) && "record".equals(key))
@@ -719,6 +751,208 @@ public class BlackBoxPlugin extends Plugin
 		o.addProperty("config", entity.getConfig() == null ? -1 : entity.getConfig().getId());
 		o.addProperty("owner", entity.getOwnerType());
 		session.add(o);
+	}
+
+	// ---- Watched plugins ----
+
+	/** What the sidebar's "Watched plugins" section reads and writes: Black Box's own configuration. Swing thread. */
+	private final class Watching implements WatchPanel.Model
+	{
+		@Override
+		public List<String> installed()
+		{
+			List<String> names = new ArrayList<>();
+			for (Plugin plugin : pluginManager.getPlugins())
+			{
+				if (plugin.getName() != null)
+				{
+					names.add(plugin.getName());
+				}
+			}
+			Collections.sort(names, String.CASE_INSENSITIVE_ORDER);
+			return names;
+		}
+
+		@Override
+		public List<String> watched()
+		{
+			return WatchList.decode(configManager.getConfiguration(BlackBoxConfig.GROUP, WatchList.WATCHED_KEY));
+		}
+
+		@Override
+		public void setWatched(List<String> names)
+		{
+			if (names.isEmpty())
+			{
+				configManager.unsetConfiguration(BlackBoxConfig.GROUP, WatchList.WATCHED_KEY);
+			}
+			else
+			{
+				configManager.setConfiguration(BlackBoxConfig.GROUP, WatchList.WATCHED_KEY, WatchList.encode(names));
+			}
+			clientThread.invoke(() ->
+			{
+				rebuildWatchedGroups();
+				if (session != null)
+				{
+					writeWatch(session, System.currentTimeMillis());
+				}
+			});
+		}
+
+		@Override
+		public boolean isOn(String name)
+		{
+			Plugin plugin = pluginByName(name);
+			return plugin != null && pluginManager.isPluginEnabled(plugin);
+		}
+
+		@Override
+		public List<String> sets()
+		{
+			String prefix = BlackBoxConfig.GROUP + "." + WatchList.SET_PREFIX;
+			List<String> names = new ArrayList<>();
+			for (String key : configManager.getConfigurationKeys(prefix))
+			{
+				if (key.startsWith(prefix))
+				{
+					names.add(key.substring(prefix.length()));
+				}
+			}
+			Collections.sort(names, String.CASE_INSENSITIVE_ORDER);
+			return names;
+		}
+
+		@Override
+		public List<String> loadSet(String name)
+		{
+			return WatchList.decode(configManager.getConfiguration(BlackBoxConfig.GROUP, WatchList.SET_PREFIX + name));
+		}
+
+		@Override
+		public void saveSet(String name, List<String> names)
+		{
+			configManager.setConfiguration(BlackBoxConfig.GROUP, WatchList.SET_PREFIX + name, WatchList.encode(names));
+		}
+
+		@Override
+		public void deleteSet(String name)
+		{
+			configManager.unsetConfiguration(BlackBoxConfig.GROUP, WatchList.SET_PREFIX + name);
+		}
+	}
+
+	private Plugin pluginByName(String name)
+	{
+		for (Plugin plugin : pluginManager.getPlugins())
+		{
+			if (name.equals(plugin.getName()))
+			{
+				return plugin;
+			}
+		}
+		return null;
+	}
+
+	/** The watched plugins in the stored order, those that are installed. Any thread. */
+	private List<Plugin> watchedPlugins()
+	{
+		List<Plugin> plugins = new ArrayList<>();
+		for (String name : WatchList.decode(configManager.getConfiguration(BlackBoxConfig.GROUP, WatchList.WATCHED_KEY)))
+		{
+			Plugin plugin = pluginByName(name);
+			if (plugin != null)
+			{
+				plugins.add(plugin);
+			}
+		}
+		return plugins;
+	}
+
+	/** A watched plugin's config descriptor, or null when it has no configuration. */
+	private ConfigDescriptor descriptorOf(Plugin plugin)
+	{
+		Config proxy = pluginManager.getPluginConfigProxy(plugin);
+		return proxy == null ? null : configManager.getConfigDescriptor(proxy);
+	}
+
+	/** Client thread. */
+	private void rebuildWatchedGroups()
+	{
+		watchedGroups.clear();
+		for (Plugin plugin : watchedPlugins())
+		{
+			ConfigDescriptor descriptor = descriptorOf(plugin);
+			if (descriptor != null)
+			{
+				watchedGroups.put(descriptor.getGroup().value(), plugin);
+			}
+		}
+	}
+
+	/**
+	 * A {@code watch} line naming the watched plugins, then a {@code settings} line per watched plugin with
+	 * every current setting (secret ones withheld, see {@link SettingsSnapshot}). Client thread.
+	 */
+	private void writeWatch(SessionLog target, long now)
+	{
+		List<Plugin> plugins = watchedPlugins();
+		JsonObject watch = target.line("watch", client.getTickCount(), now);
+		JsonArray list = new JsonArray();
+		for (Plugin plugin : plugins)
+		{
+			JsonObject one = new JsonObject();
+			one.addProperty("name", plugin.getName());
+			one.addProperty("on", pluginManager.isPluginEnabled(plugin));
+			list.add(one);
+		}
+		watch.add("plugins", list);
+		target.add(watch);
+		for (Plugin plugin : plugins)
+		{
+			ConfigDescriptor descriptor = descriptorOf(plugin);
+			if (descriptor == null)
+			{
+				continue;
+			}
+			String group = descriptor.getGroup().value();
+			JsonObject o = target.line("settings", client.getTickCount(), now);
+			o.addProperty("plugin", plugin.getName());
+			o.addProperty("group", group);
+			o.add("values", SettingsSnapshot.of(descriptor.getItems(), key -> configManager.getConfiguration(group, key)));
+			target.add(o);
+		}
+	}
+
+	/** A changed setting's value for a watched plugin, withheld like a snapshot would; null when it is hidden or unset. */
+	private String valueFor(Plugin plugin, String key, String newValue)
+	{
+		if (newValue == null)
+		{
+			return null;
+		}
+		ConfigDescriptor descriptor = descriptorOf(plugin);
+		if (descriptor == null)
+		{
+			return null;
+		}
+		for (ConfigItemDescriptor item : descriptor.getItems())
+		{
+			if (!key.equals(item.key()))
+			{
+				continue;
+			}
+			if (item.getItem().hidden())
+			{
+				return null;
+			}
+			if (item.getItem().secret())
+			{
+				return SettingsSnapshot.SECRET;
+			}
+			return item.getType() == String.class ? SettingsSnapshot.text(key, newValue) : newValue;
+		}
+		return null;
 	}
 
 	// ---- Frames per second ----
