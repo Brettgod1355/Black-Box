@@ -106,7 +106,8 @@ per line, in the order things happened. Every line has `e` (what happened), `tic
 | `npcSay` | `npc`, `index`, `name`, `text`, `wv` |
 | `items` | `container`, `items` as `[id, quantity]` pairs, one per slot |
 | `objectAdd`, `objectGone` | `id`, `hash`, `wv`, `x`, `y`, `plane` |
-| `npcAdd`, `npcGone` | `npc`, `index`, `name`, `wv` |
+| `npcAdd`, `npcGone` | `npc`, `index`, `name`, `wv`; from format 5 also `x`, `y`, `plane`, the NPC's tile in the main world (under the boat for an NPC aboard one), left out while the bank PIN keypad shows |
+| `npcMove` | `at`: `[index, x, y, plane]` for each NPC in the main world whose tile changed since the last tick (crew aboard boats left out). None while the bank PIN keypad shows. Format 5 and later |
 | `boatAdd`, `boatGone` | `wv`, `config`, `owner` |
 | `var` | `varbit`, `varp`, `value` |
 | `stat` | `skill`, `xp`, `level`, `boosted` |

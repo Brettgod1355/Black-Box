@@ -158,6 +158,8 @@ public class BlackBoxPlugin extends Plugin
 	private ScheduledFuture<?> flushTask;
 	private long lastShotAt;
 	private int shotCount;
+	/** For {@link #npcMoves()}. Client thread only. */
+	private final NpcTiles npcTiles = new NpcTiles();
 	private boolean shotPending;
 	/**
 	 * The bank PIN keypad is showing: no clicks, game values or screenshots are recorded until it closes.
@@ -259,6 +261,7 @@ public class BlackBoxPlugin extends Plugin
 		session = started;
 		shotCount = 0;
 		lastShotAt = 0;
+		npcTiles.clear();
 		pinPause = pinShowing();
 		JsonObject header = started.line("session", client.getTickCount(), now);
 		header.addProperty("format", SessionLog.FORMAT);
@@ -431,6 +434,7 @@ public class BlackBoxPlugin extends Plugin
 			}
 		}
 		session.add(o);
+		npcMoves();
 
 		int every = config.shotEverySeconds();
 		if (every > 0 && !pinPause && System.currentTimeMillis() - lastShotAt >= every * 1000L)
@@ -737,7 +741,80 @@ public class BlackBoxPlugin extends Plugin
 		o.addProperty("index", npc.getIndex());
 		o.addProperty("name", scrub(npc.getName()));
 		worldView(o, npc.getWorldView());
+		// Where it is in the main world (format 5), unless the bank PIN keypad shows.
+		WorldPoint at = pinPause ? null : mainWorldTile(npc);
+		point(o, "", at);
+		if (at != null && "npcAdd".equals(kind) && isTopLevel(npc))
+		{
+			npcTiles.moved(npc.getIndex(), at);
+		}
+		else if ("npcGone".equals(kind))
+		{
+			npcTiles.forget(npc.getIndex());
+		}
 		session.add(o);
+	}
+
+	/**
+	 * One {@code npcMove} line per tick (format 5): {@code at}, an array of {@code [index, x, y, plane]} for every
+	 * NPC in the main world whose tile changed since the last tick. NPCs aboard a boat (crew) are left out: they
+	 * move with the boat every tick. Nothing while the bank PIN keypad shows.
+	 */
+	private void npcMoves()
+	{
+		WorldView top = client.getTopLevelWorldView();
+		if (session == null || pinPause || top == null)
+		{
+			return;
+		}
+		JsonArray moved = new JsonArray();
+		for (NPC npc : top.npcs())
+		{
+			WorldPoint at = npc == null ? null : npc.getWorldLocation();
+			if (at == null)
+			{
+				continue;
+			}
+			if (npcTiles.moved(npc.getIndex(), at))
+			{
+				JsonArray entry = new JsonArray();
+				entry.add(npc.getIndex());
+				entry.add(at.getX());
+				entry.add(at.getY());
+				entry.add(at.getPlane());
+				moved.add(entry);
+			}
+		}
+		if (moved.size() > 0)
+		{
+			JsonObject o = line("npcMove");
+			o.add("at", moved);
+			session.add(o);
+		}
+	}
+
+	private static boolean isTopLevel(NPC npc)
+	{
+		WorldView view = npc.getWorldView();
+		return view != null && view.isTopLevel();
+	}
+
+	/** The NPC's tile in the main world: its own tile there, or, aboard a boat, the boat's main-world tile under it. */
+	private WorldPoint mainWorldTile(NPC npc)
+	{
+		WorldView view = npc.getWorldView();
+		if (view == null)
+		{
+			return null;
+		}
+		if (view.isTopLevel())
+		{
+			return npc.getWorldLocation();
+		}
+		WorldEntity boat = boatOf(view);
+		LocalPoint local = npc.getLocalLocation();
+		LocalPoint top = boat == null || local == null ? null : boat.transformToMainWorld(local);
+		return top == null ? null : WorldPoint.fromLocal(client, top);
 	}
 
 	private void worldEntity(String kind, WorldEntity entity)
