@@ -45,7 +45,17 @@ interface Desk
 	/** Bytes written so far to the current recording, or 0. */
 	long bytesSoFar();
 
-	void mark();
+	/**
+	 * Mark pressed: the moment (tick and time) and a picture are kept aside, nothing is written yet. The callback
+	 * gets the moment's clock text on the Swing thread.
+	 */
+	void beginMark(java.util.function.Consumer<String> then);
+
+	/** Writes the kept moment into the recording as a mark, with what the player wrote (may be empty). */
+	void saveMark(String text);
+
+	/** Drops the kept moment; nothing is written. */
+	void cancelMark();
 
 	void note(String text);
 

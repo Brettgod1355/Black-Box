@@ -24,7 +24,6 @@ import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
-import javax.swing.JTextField;
 import javax.swing.Timer;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
@@ -32,8 +31,9 @@ import net.runelite.client.ui.FontManager;
 /**
  * The top of the sidebar: the recorder's state (a red dot, since when, the time so far and the size; recording
  * starts at login by itself), Export (the last 2, 10 or 30 minutes, a number of your own, or all of today) and
- * Open folder, then Mark with a line saying when to press it, a box for what happened, and a status line that
- * says where an export went. Built for a player a developer sent here: nothing to start, one button to send.
+ * Open folder, then Mark. Pressing Mark keeps the moment aside and turns the Mark area into a small form: the
+ * time that was saved, a box for what happened, Save flag and Cancel. Nothing goes into the recording until
+ * Save flag. Built for a player a developer sent here: nothing to start, one button to send.
  */
 class RecorderSection extends JPanel
 {
@@ -43,7 +43,9 @@ class RecorderSection extends JPanel
 	private final Dot dot = new Dot();
 	private final JLabel title = new JLabel("Not recording");
 	private final JLabel detail = new JLabel(" ");
-	private final JTextField noteBox = new JTextField();
+	private final JPanel markCards = new JPanel(new java.awt.CardLayout());
+	private final JLabel flagTitle = new JLabel("Spot flagged");
+	private final javax.swing.JTextArea flagText = new javax.swing.JTextArea();
 	private final javax.swing.JTextArea status = Wrap.text(" ", null, 4);
 	private final Timer timer;
 
@@ -78,28 +80,44 @@ class RecorderSection extends JPanel
 		actions.add(button("Open folder", "Open the folder that holds the recordings and exports", e -> desk.openFolder(this::say)));
 		add(fullWidth(actions));
 
+		markCards.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		markCards.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
+
 		JPanel markRow = new JPanel(new BorderLayout(0, 3));
 		markRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		markRow.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
-		JButton mark = button("Mark", "Flag this moment in the recording, with a picture", e ->
-		{
-			desk.mark();
-			say("Marked. Now type what happened below.");
-		});
+		JButton mark = button("Mark", "Flag this moment in the recording", e -> beginMark());
 		mark.setFont(FontManager.getRunescapeBoldFont());
 		markRow.add(mark, BorderLayout.NORTH);
-		markRow.add(Wrap.text("Press Mark the moment you see the problem, then type what happened below. That flags the spot in the recording. Export it afterwards.", null, 4), BorderLayout.CENTER);
-		add(fullWidth(markRow));
+		markRow.add(Wrap.text("Press Mark the moment you see the problem. The time is saved at once; you then say what happened and save the flag. Export afterwards.", null, 4), BorderLayout.CENTER);
+		markCards.add(markRow, "mark");
 
-		JPanel noteRow = new JPanel(new BorderLayout(0, 2));
-		noteRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		noteRow.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
-		JLabel noteCaption = new JLabel("What happened? Enter adds it.");
-		noteCaption.setFont(FontManager.getRunescapeSmallFont());
-		noteCaption.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		noteRow.add(noteCaption, BorderLayout.NORTH);
-		noteRow.add(noteBox, BorderLayout.CENTER);
-		add(fullWidth(noteRow));
+		JPanel flagForm = new JPanel(new BorderLayout(0, 4));
+		flagForm.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		flagForm.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+		flagTitle.setFont(FontManager.getRunescapeBoldFont());
+		flagTitle.setForeground(Color.WHITE);
+		JPanel flagHead = new JPanel(new BorderLayout(0, 2));
+		flagHead.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		flagHead.add(flagTitle, BorderLayout.NORTH);
+		flagHead.add(Wrap.text("The time is saved. Say what happened, as much or as little as you like, then save the flag. Nothing is written until you do.", null, 3), BorderLayout.CENTER);
+		flagForm.add(flagHead, BorderLayout.NORTH);
+		flagText.setLineWrap(true);
+		flagText.setWrapStyleWord(true);
+		flagText.setRows(3);
+		flagText.setToolTipText("What happened? Optional.");
+		flagText.putClientProperty("JTextArea.placeholderText", "What happened? (optional)");
+		javax.swing.JScrollPane flagScroll = new javax.swing.JScrollPane(flagText);
+		flagScroll.setBorder(BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR));
+		flagForm.add(flagScroll, BorderLayout.CENTER);
+		JPanel flagButtons = new JPanel(new GridLayout(1, 2, 4, 0));
+		flagButtons.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		JButton save = button("Save flag", "Write the flag and what you said into the recording", e -> saveMark());
+		save.setFont(FontManager.getRunescapeBoldFont());
+		flagButtons.add(save);
+		flagButtons.add(button("Cancel", "Drop it; nothing is written", e -> cancelMark()));
+		flagForm.add(flagButtons, BorderLayout.SOUTH);
+		markCards.add(flagForm, "flag");
+		add(fullWidth(markCards));
 
 		JPanel statusRow = new JPanel(new BorderLayout());
 		statusRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -149,6 +167,40 @@ class RecorderSection extends JPanel
 	{
 		status.setText(text);
 		status.revalidate();
+	}
+
+	private void beginMark()
+	{
+		desk.beginMark(when ->
+		{
+			flagTitle.setText("Spot flagged at " + when);
+			flagText.setText("");
+			((java.awt.CardLayout) markCards.getLayout()).show(markCards, "flag");
+			flagText.requestFocusInWindow();
+			say(" ");
+		});
+	}
+
+	private void saveMark()
+	{
+		desk.saveMark(flagText.getText().trim());
+		((java.awt.CardLayout) markCards.getLayout()).show(markCards, "mark");
+		say("Flag saved into the recording. Export when you are ready.");
+	}
+
+	private void cancelMark()
+	{
+		desk.cancelMark();
+		((java.awt.CardLayout) markCards.getLayout()).show(markCards, "mark");
+		say("Flag dropped; nothing was written.");
+	}
+
+	/** For a picture of the form. */
+	void showFlagForm(String when, String typed)
+	{
+		flagTitle.setText("Spot flagged at " + when);
+		flagText.setText(typed);
+		((java.awt.CardLayout) markCards.getLayout()).show(markCards, "flag");
 	}
 
 	private void exportMenu(JComponent at)

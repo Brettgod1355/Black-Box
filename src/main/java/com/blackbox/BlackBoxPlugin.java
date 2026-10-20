@@ -158,6 +158,10 @@ public class BlackBoxPlugin extends Plugin
 	private final Map<String, Plugin> groups = new HashMap<>();
 	/** The watched plugins' config groups: their setting changes become chart markers; client thread. */
 	private final Map<String, Plugin> watchedGroups = new HashMap<>();
+	/** A Mark pressed in the sidebar and not yet saved: its tick, its time and its picture; client thread. */
+	private int pendingMarkTick = -1;
+	private long pendingMarkAt;
+	private BufferedImage pendingMarkImage;
 	/** The client's log, caught inside the client; attached while the plugin runs. */
 	private final ClientLogTap logTap = new ClientLogTap(System.getProperty("user.home"));
 	/** Regions whose collision flags this recording already holds; client thread. */
@@ -946,9 +950,65 @@ public class BlackBoxPlugin extends Plugin
 		}
 
 		@Override
-		public void mark()
+		public void beginMark(Consumer<String> then)
 		{
-			clientThread.invoke(BlackBoxPlugin.this::mark);
+			clientThread.invoke(() ->
+			{
+				pendingMarkTick = client.getTickCount();
+				pendingMarkAt = System.currentTimeMillis();
+				pendingMarkImage = null;
+				capture(image -> pendingMarkImage = image);
+				String when = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date(pendingMarkAt));
+				SwingUtilities.invokeLater(() -> then.accept(when));
+			});
+		}
+
+		@Override
+		public void saveMark(String text)
+		{
+			clientThread.invoke(() ->
+			{
+				if (pendingMarkTick < 0)
+				{
+					return;
+				}
+				int tick = pendingMarkTick;
+				long at = pendingMarkAt;
+				BufferedImage image = pendingMarkImage;
+				pendingMarkTick = -1;
+				pendingMarkImage = null;
+				live.note(at, "mark", text.isEmpty() ? "Mark" : text);
+				SessionLog target = session;
+				if (target == null)
+				{
+					return;
+				}
+				JsonObject o = target.line("mark", tick, at);
+				if (!text.isEmpty())
+				{
+					o.addProperty("text", scrub(text));
+				}
+				target.add(o);
+				if (image != null && !pinPause)
+				{
+					String file = String.format("%05d-tick%d-mark.jpg", ++shotCount, tick);
+					JsonObject shot = target.line("shot", tick, at);
+					shot.addProperty("file", file);
+					shot.addProperty("reason", "mark");
+					target.add(shot);
+					executor.execute(() -> writeShot(target, file, image));
+				}
+			});
+		}
+
+		@Override
+		public void cancelMark()
+		{
+			clientThread.invoke(() ->
+			{
+				pendingMarkTick = -1;
+				pendingMarkImage = null;
+			});
 		}
 
 		@Override
@@ -1600,6 +1660,30 @@ public class BlackBoxPlugin extends Plugin
 			finally
 			{
 				shotPending = false;
+			}
+		});
+	}
+
+	/**
+	 * Keeps the next frame, shrunk and with the chat box blacked out, for a mark that may be saved later. The
+	 * keypad and the game state are checked when the frame arrives, as for any screenshot. Client thread.
+	 */
+	private void capture(java.util.function.Consumer<BufferedImage> then)
+	{
+		if (pinPause)
+		{
+			return;
+		}
+		Rectangle chat = config.hideChat() ? chatBounds() : null;
+		int canvasWidth = client.getCanvasWidth();
+		int maxWidth = config.shotWidth();
+		drawManager.requestNextFrameListener(image ->
+		{
+			boolean keep = !pinPause && Privacy.mayKeepFrame(client.getGameState());
+			BufferedImage small = keep ? shrink(image, maxWidth, chat, canvasWidth) : null;
+			if (small != null)
+			{
+				clientThread.invoke(() -> then.accept(small));
 			}
 		});
 	}

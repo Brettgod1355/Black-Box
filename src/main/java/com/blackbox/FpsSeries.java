@@ -264,7 +264,7 @@ final class FpsSeries
 					series.note(at, kind, "Watching " + (o.has("plugins") ? o.get("plugins").getAsJsonArray().size() : 0) + " plugin(s)");
 					break;
 				case "mark":
-					series.note(at, kind, "Mark");
+					series.note(at, kind, o.has("text") ? field(o, "text") : "Mark");
 					break;
 				case "note":
 					series.note(at, kind, field(o, "text"));

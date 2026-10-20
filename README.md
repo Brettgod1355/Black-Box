@@ -41,8 +41,9 @@ miss and refused the wrong fixes before they shipped. The worked example below t
 Click the black box icon in the sidebar. Recording starts by itself when you log in; the card at the top shows
 the red dot, since when, the time so far and the size. **Export** saves the last 2, 10 or 30 minutes, a number
 of minutes you choose, or all of today, as one zip to send to a developer; **Open folder** opens the folder that
-holds the recordings and the exports. **Mark**: press it the moment you see the problem, then type what happened
-in the box and press Enter; that flags the spot in the recording, and you export afterwards. Then frames per
+holds the recordings and the exports. **Mark**: press it the moment you see the problem. The time is saved at
+once and the Mark area becomes a small form: say what happened, as much or as little as you like, and press
+Save flag; Cancel drops it, and nothing is written until you save. Export afterwards. Then frames per
 second, the list of recordings with Zip, Open and Delete for each, and **Reporting on**: every plugin's settings
 are recorded anyway; name the plugin the problem is about, so the developer sees it and its setting changes show
 on the chart.
@@ -59,8 +60,8 @@ path is copied to your clipboard.
 ### Asking a player for a recording (for developers)
 
 Paste this into the issue: "Install Black Box from the Plugin Hub and open its sidebar (the black box icon).
-It records on its own. Add *<your plugin>* under Watched plugins, make the problem happen, type what you saw in
-the note box and press Enter, then press Export and pick the last 10 minutes, and attach the zip it names. It
+It records on its own. Add *<your plugin>* under Watched plugins, make the problem happen, press Mark, say what you saw and
+press Save flag, then press Export and pick the last 10 minutes, and attach the zip it names. It
 holds no chat from other players, no bank PIN and no pictures unless you turn those on; the README inside lists
 exactly what it holds."
 
@@ -126,7 +127,7 @@ In a recording, every `tick` line carries `fps`, and `plugin` and `setting` line
 | Setting | Default | What it does |
 |---|---|---|
 | Record | on | Records while you are logged in. |
-| Mark hotkey | none | Marks the moment, and takes a screenshot if screenshots are on. |
+| Mark hotkey | none | Marks the moment at once, with a picture, without the form. |
 | Sound effects | on | Records the id of each sound effect the game plays, while the game's sound effects are on. |
 | Screenshots: Every | 0 (off) | A screenshot this often; 0 leaves pictures to Mark and notifications. |
 | Screenshots: On notifications | on | A screenshot whenever any plugin sends a notification. |
