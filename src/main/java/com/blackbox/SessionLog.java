@@ -27,7 +27,9 @@ final class SessionLog
 	 * watched plugin carries {@code plugin} and {@code value}. 5: NPC positions ({@code npcAdd}/{@code npcGone} tiles,
 	 * {@code npcMove}). 6: {@code boatDir}, {@code overlay} and {@code underlay} on {@code tick} lines; {@code collision}
 	 * (a region's flags, once), {@code npcTarget}, {@code npcAnim}, {@code graphic} and {@code note} lines; a
-	 * {@code plugins} line and a {@code settings} line for every plugin; {@code client-log.txt} beside the events.
+	 * {@code plugins} line and a {@code settings} line for every plugin; {@code client-log.txt} beside the events;
+	 * the session line carries {@code startedAt} (wall clock, milliseconds) and the environment (client commit,
+	 * launcher, Plugin Hub, Java, OS, canvas, resizable, stretched); Hub plugins carry {@code version}.
 	 */
 	static final int FORMAT = 6;
 	static final String EVENTS_FILE = "events.jsonl";

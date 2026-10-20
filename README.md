@@ -85,6 +85,10 @@ you typed into a plugin are what a developer needs to see). Withheld, always: a 
 a hidden one, and anything that is a webhook, a key, a password or a token, by its key name or by what it looks
 like, written as `<secret>` or `<withheld>`. When a setting changes, the `setting` line carries the new value.
 
+The first line of a recording says which client this was: RuneLite's version and commit, the launcher and
+Plugin Hub versions, Java, the operating system, the window size and mode, and the wall-clock start time; the
+`plugins` line carries each Hub plugin's version. Nothing in that says who you are.
+
 Beside the events, `client-log.txt` holds the client's own log for the same time: every INFO, WARN and ERROR line
 RuneLite and its plugins logged, in the shape of RuneLite's `client.log`, with stack traces cut short. Black Box
 never reads the log file; it listens to the client's logging as it happens, keeps the last lines from before you

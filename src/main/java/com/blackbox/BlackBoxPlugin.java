@@ -293,6 +293,8 @@ public class BlackBoxPlugin extends Plugin
 		header.addProperty("runelite", RuneLiteProperties.getVersion());
 		header.addProperty("world", client.getWorld());
 		header.addProperty("started", name);
+		header.addProperty("startedAt", now);
+		Environment.describe(header, client);
 		started.add(header);
 		if (pinPause)
 		{
@@ -1273,6 +1275,11 @@ public class BlackBoxPlugin extends Plugin
 			JsonObject one = new JsonObject();
 			one.addProperty("name", plugin.getName());
 			one.addProperty("on", pluginManager.isPluginEnabled(plugin));
+			String version = Environment.versionOf(plugin);
+			if (version != null)
+			{
+				one.addProperty("version", version);
+			}
 			list.add(one);
 		}
 		watch.add("plugins", list);
@@ -1286,6 +1293,11 @@ public class BlackBoxPlugin extends Plugin
 			JsonObject one = new JsonObject();
 			one.addProperty("name", plugin.getName());
 			one.addProperty("on", pluginManager.isPluginEnabled(plugin));
+			String version = Environment.versionOf(plugin);
+			if (version != null)
+			{
+				one.addProperty("version", version);
+			}
 			names.add(one);
 		}
 		installed.add("plugins", names);
