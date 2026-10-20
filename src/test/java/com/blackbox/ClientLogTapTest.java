@@ -40,6 +40,18 @@ public class ClientLogTapTest
 	}
 
 	@Test
+	public void accountNamesOtherSoftwareLogsAreWithheld()
+	{
+		ClientLogTap tap = new ClientLogTap(null);
+		assertEquals("Discord RPC service is ready with user <withheld>.",
+			tap.scrub("Discord RPC service is ready with user someone_g."));
+		assertEquals("user=<withheld>, loading 0 updated flips", tap.scrub("user=31654, loading 0 updated flips"));
+		assertEquals("logged in as user <withheld> (Username: <withheld>)", tap.scrub("logged in as user Abc (Username: Abc)"));
+		assertEquals("account=<withheld>", tap.scrub("account=12345"));
+		assertEquals("a user clicked the user interface", tap.scrub("a user clicked the user interface"));
+	}
+
+	@Test
 	public void stackTracesAreCutShort()
 	{
 		ClientLogTap tap = new ClientLogTap(null);

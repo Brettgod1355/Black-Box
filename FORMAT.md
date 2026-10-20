@@ -148,7 +148,8 @@ tile: what a boat or a walker can and cannot cross.
 
 The client's own log, caught inside the client as it is written: every INFO, WARN and ERROR line of RuneLite
 and its plugins, as `yyyy-MM-dd HH:mm:ss zzz [thread] LEVEL logger - message`, with an exception's first ten
-frames per cause under it. The player's name is `<you>` and the home folder `<home>`. The first lines are from
+frames per cause under it. The player's name is `<you>`, the home folder `<home>`, and an account name or id other software logs
+(RuneLite's "Discord RPC service is ready with user ...", a plugin's `user=...`) is `<withheld>`. The first lines are from
 before the recording began, back to when the client started. In an export, every WARN and ERROR line of the whole
 recording is kept and only the ordinary lines outside the window are dropped.
 

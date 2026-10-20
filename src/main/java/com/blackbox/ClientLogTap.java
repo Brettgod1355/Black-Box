@@ -26,7 +26,8 @@ import org.slf4j.LoggerFactory;
  * log, in the same shape as {@code client.log}, with stack traces cut to a few frames. Nothing reads the log
  * file; this listens to the logging framework RuneLite already runs. Before a recording starts the last lines
  * wait in memory, so a recording begins with what happened since the client started, errors included. The
- * player's name becomes {@code <you>} and the home folder {@code <home>} in every line.
+ * player's name becomes {@code <you>}, the home folder {@code <home>} and account names other software logs
+ * ("with user ...", "user=...") {@code <withheld>} in every line.
  */
 final class ClientLogTap extends AppenderBase<ILoggingEvent>
 {
@@ -169,7 +170,7 @@ final class ClientLogTap extends AppenderBase<ILoggingEvent>
 		{
 			return "";
 		}
-		String out = Privacy.scrub(text, ownName);
+		String out = Privacy.scrubAccounts(Privacy.scrub(text, ownName));
 		if (home != null && out.contains(home))
 		{
 			out = out.replace(home, "<home>");

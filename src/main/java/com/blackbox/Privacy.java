@@ -95,6 +95,20 @@ final class Privacy
 		return m.replaceAll(Matcher.quoteReplacement(YOU));
 	}
 
+	/**
+	 * Account names and ids other software logs about the player, as in RuneLite's own "Discord RPC service is ready
+	 * with user ..." or a plugin's "user=31654": the value after {@code user}, {@code username} or {@code account}
+	 * followed by {@code =} or {@code :}, or after "with user" / "as user", becomes {@link #WITHHELD}.
+	 */
+	private static final Pattern ACCOUNT = Pattern.compile(
+		"(?i)\\b((?:user(?:name)?|account)\\s*[=:]\\s*|(?:with|as)\\s+user\\s+)([^\\s,;)\\]}]*[^\\s,;)\\]}.])");
+	static final String WITHHELD = "<withheld>";
+
+	static String scrubAccounts(String text)
+	{
+		return text == null ? null : ACCOUNT.matcher(text).replaceAll("$1" + Matcher.quoteReplacement(WITHHELD));
+	}
+
 	/** Whether a menu entry's target is another player, whose name must not be recorded. */
 	static boolean targetsPlayer(MenuAction action)
 	{

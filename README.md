@@ -138,7 +138,8 @@ Plugin Hub versions, Java, the operating system, the window size and mode, and t
 Beside the events, `client-log.txt` holds the client's own log for the same time: every INFO, WARN and ERROR line
 RuneLite and its plugins logged, in the shape of RuneLite's `client.log`, with stack traces cut short. Black Box
 never reads the log file; it listens to the client's logging as it happens, keeps the last lines from before you
-pressed Record, and replaces your name and your home folder in every line. A developer who would have asked for
+pressed Record, and replaces your name, your home folder and account names other software logs (such as the
+Discord user RuneLite connects to) in every line. A developer who would have asked for
 `client.log` gets it in the share zip instead.
 
 ## Reporting on
