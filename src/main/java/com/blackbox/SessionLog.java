@@ -25,7 +25,7 @@ final class SessionLog
 	 * plugins) and {@code settings} (a watched plugin's values, secrets withheld) lines; a {@code setting} line of a
 	 * watched plugin carries {@code plugin} and {@code value}. 5: NPC positions ({@code npcAdd}/{@code npcGone} tiles,
 	 * {@code npcMove}). 6: {@code boatDir}, {@code overlay} and {@code underlay} on {@code tick} lines; {@code collision}
-	 * (a region's flags, once), {@code npcTarget}, {@code npcAnim} and {@code graphic} lines.
+	 * (a region's flags, once), {@code npcTarget}, {@code npcAnim}, {@code graphic} and {@code note} lines.
 	 */
 	static final int FORMAT = 6;
 	static final String EVENTS_FILE = "events.jsonl";
@@ -37,6 +37,8 @@ final class SessionLog
 	private final ConcurrentLinkedQueue<String> pending = new ConcurrentLinkedQueue<>();
 	/** The events file, open from {@link #open()} to {@link #close()}; executor thread only. */
 	private Writer out;
+	/** Bytes written so far, for the sidebar. */
+	private volatile long bytes;
 
 	SessionLog(String name, Filepath dir, long startedAt)
 	{
@@ -48,6 +50,21 @@ final class SessionLog
 	String getName()
 	{
 		return name;
+	}
+
+	Filepath getDir()
+	{
+		return dir;
+	}
+
+	long getStartedAt()
+	{
+		return startedAt;
+	}
+
+	long getBytes()
+	{
+		return bytes;
 	}
 
 	/** A new line of the given kind, stamped with the game tick and the time since the recording began. */
@@ -84,6 +101,7 @@ final class SessionLog
 		{
 			out.write(next);
 			out.write('\n');
+			bytes += next.length() + 1;
 		}
 		out.flush();
 	}

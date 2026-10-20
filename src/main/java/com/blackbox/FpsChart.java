@@ -357,6 +357,7 @@ class FpsChart extends JComponent
 			case "setting":
 				return new Color(255, 220, 80);
 			case "mark":
+			case "note":
 				return new Color(80, 230, 230);
 			case "notify":
 				return new Color(120, 230, 120);

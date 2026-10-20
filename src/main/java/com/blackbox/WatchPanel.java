@@ -63,7 +63,7 @@ class WatchPanel extends JPanel
 	private final JComboBox<String> sets = new JComboBox<>();
 	private final JComboBox<String> candidates = new JComboBox<>();
 	private final JPanel rows = new JPanel();
-	private final JLabel footer = new JLabel();
+	private final javax.swing.JTextArea footer = Wrap.text(" ", null, 3);
 	private boolean adjusting;
 
 	WatchPanel(Model model)
@@ -104,9 +104,8 @@ class WatchPanel extends JPanel
 		rows.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
 		add(fullWidth(rows));
 
-		footer.setFont(FontManager.getRunescapeSmallFont());
-		footer.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		add(left(footer));
+		footer.setAlignmentX(LEFT_ALIGNMENT);
+		add(fullWidth(footer));
 		refresh();
 	}
 
@@ -141,10 +140,9 @@ class WatchPanel extends JPanel
 				rows.add(row(name, model.isOn(name)));
 				rows.add(javax.swing.Box.createVerticalStrut(3));
 			}
-			footer.setText("<html><div style='width:190px'>" + (watched.isEmpty()
-				? "Nothing watched. A watched plugin's settings are written when a recording starts and when one changes; secret ones never."
-				: watched.size() + " watched. Their settings are written when a recording starts and when one changes; secret ones never.")
-				+ "</div></html>");
+			footer.setText(watched.isEmpty()
+				? "Nothing watched. A watched plugin's settings go into the recording; secret ones never."
+				: watched.size() + " watched. Their settings go into the recording at the start and on change; secret ones never.");
 			rows.revalidate();
 			revalidate();
 			repaint();

@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Consumer;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -93,6 +94,7 @@ import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.Filepath;
 import net.runelite.client.util.HotkeyListener;
 import net.runelite.client.util.ImageUtil;
+import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.util.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -162,7 +164,7 @@ public class BlackBoxPlugin extends Plugin
 
 	/** Frames per second since the plugin started, recording or not: what the sidebar and the window show live. */
 	private final FpsSeries live = new FpsSeries("Live", FpsSeries.LIVE_CAPACITY);
-	private FpsPanel panel;
+	private BlackBoxPanel panel;
 	private NavigationButton navButton;
 	private FpsWindow window;
 
@@ -207,11 +209,13 @@ public class BlackBoxPlugin extends Plugin
 		keyManager.registerKeyListener(markListener);
 		flushTask = executor.scheduleWithFixedDelay(this::flushQuietly, 1, 1, TimeUnit.SECONDS);
 		watchPanel = new WatchPanel(new Watching());
-		panel = new FpsPanel(live, this::openFpsWindow, watchPanel);
+		Office office = new Office();
+		RecorderSection recorder = new RecorderSection(office);
+		panel = new BlackBoxPanel(recorder, new FpsSection(live, this::openFpsWindow), new RecordingsSection(office, recorder), watchPanel);
 		clientThread.invoke(this::rebuildWatchedGroups);
 		navButton = NavigationButton.builder()
-			.tooltip("Black Box: frames per second")
-			.icon(ImageUtil.loadImageResource(getClass(), "fps.png"))
+			.tooltip("Black Box")
+			.icon(ImageUtil.loadImageResource(getClass(), "sidebar.png"))
 			.priority(10)
 			.panel(panel)
 			.build();
@@ -230,7 +234,7 @@ public class BlackBoxPlugin extends Plugin
 		}
 		if (panel != null)
 		{
-			panel.stop();
+			panel.onDeactivate();
 			panel = null;
 		}
 		SwingUtilities.invokeLater(() ->
@@ -302,6 +306,17 @@ public class BlackBoxPlugin extends Plugin
 			cleanUp(root, name);
 		});
 		log.debug("Black Box recording {}", name);
+		panelChanged();
+	}
+
+	/** Tells the sidebar a recording started or ended. Any thread. */
+	private void panelChanged()
+	{
+		BlackBoxPanel current = panel;
+		if (current != null)
+		{
+			SwingUtilities.invokeLater(current::recordingChanged);
+		}
 	}
 
 	private void stop(String why)
@@ -325,6 +340,7 @@ public class BlackBoxPlugin extends Plugin
 			{
 				log.warn("Black Box could not finish {}", ending.getName(), e);
 			}
+			panelChanged();
 		});
 	}
 
@@ -732,6 +748,19 @@ public class BlackBoxPlugin extends Plugin
 		session.add(o);
 	}
 
+	/** A note typed in the sidebar: what happened, in the player's words, at this moment. Client thread. */
+	private void note(String text)
+	{
+		live.note(System.currentTimeMillis(), "note", text);
+		if (session == null)
+		{
+			return;
+		}
+		JsonObject o = line("note");
+		o.addProperty("text", scrub(text));
+		session.add(o);
+	}
+
 	/** The hotkey: a mark in the recording, and a screenshot when screenshots are on. */
 	private void mark()
 	{
@@ -859,6 +888,213 @@ public class BlackBoxPlugin extends Plugin
 		o.addProperty("config", entity.getConfig() == null ? -1 : entity.getConfig().getId());
 		o.addProperty("owner", entity.getOwnerType());
 		session.add(o);
+	}
+
+	// ---- The sidebar's recorder and recordings list ----
+
+	/** What the recorder card and the recordings list do; Swing thread in, workers out. */
+	private final class Office implements Desk
+	{
+		@Override
+		public boolean isRecording()
+		{
+			return session != null;
+		}
+
+		@Override
+		public String currentName()
+		{
+			SessionLog current = session;
+			return current == null ? null : current.getName();
+		}
+
+		@Override
+		public long startedAt()
+		{
+			SessionLog current = session;
+			return current == null ? 0 : current.getStartedAt();
+		}
+
+		@Override
+		public long bytesSoFar()
+		{
+			SessionLog current = session;
+			return current == null ? 0 : current.getBytes();
+		}
+
+		@Override
+		public void setRecording(boolean on)
+		{
+			// The Record setting is the switch; its change event starts or stops the recording as before.
+			configManager.setConfiguration(BlackBoxConfig.GROUP, "record", on);
+		}
+
+		@Override
+		public void mark()
+		{
+			clientThread.invoke(BlackBoxPlugin.this::mark);
+		}
+
+		@Override
+		public void note(String text)
+		{
+			clientThread.invoke(() -> BlackBoxPlugin.this.note(text));
+		}
+
+		@Override
+		public void recordings(Consumer<List<Entry>> then)
+		{
+			executor.execute(() ->
+			{
+				List<Entry> entries = new ArrayList<>();
+				try
+				{
+					Filepath root = getPluginDirectory();
+					String current = currentName();
+					try (Stream<Filepath> dirs = root.walk(1))
+					{
+						for (Filepath dir : dirs.filter(p -> !p.equals(root) && p.isDirectory()).collect(Collectors.toList()))
+						{
+							if (Names.parse(dir.getFileName()) != null)
+							{
+								entries.add(new Entry(dir.getFileName(), measure(dir).bytes, dir.getFileName().equals(current)));
+							}
+						}
+					}
+				}
+				catch (IOException e)
+				{
+					log.warn("Black Box could not list recordings", e);
+				}
+				entries.sort((a, b) -> b.name.compareTo(a.name));
+				SwingUtilities.invokeLater(() -> then.accept(entries));
+			});
+		}
+
+		@Override
+		public void share(String name, int lastMinutes, Report report)
+		{
+			executor.execute(() ->
+			{
+				try
+				{
+					Filepath root = getPluginDirectory();
+					String target = name != null ? name : latest(root);
+					if (target == null)
+					{
+						say(report, "No recording to share yet.");
+						return;
+					}
+					SessionLog current = session;
+					boolean live = current != null && target.equals(current.getName());
+					if (live)
+					{
+						current.flush(); // the current recording's lines so far, so the zip is up to date
+					}
+					long length = live ? System.currentTimeMillis() - current.getStartedAt() : lengthOf(root.join(target));
+					Filepath zip = ShareBundle.write(gson, root.join(target), target, lastMinutes, length);
+					String where = zip.toString();
+					boolean copied = RecorderSection.copy(where);
+					say(report, "Ready to send: " + where + (copied ? " (path copied to the clipboard)" : ""));
+				}
+				catch (IOException e)
+				{
+					log.warn("Black Box could not write the share zip", e);
+					say(report, "Could not write the share zip: " + e.getMessage());
+				}
+			});
+		}
+
+		@Override
+		public void openFolder(Report report)
+		{
+			try
+			{
+				LinkBrowser.open(getPluginDirectory().toString());
+			}
+			catch (IOException e)
+			{
+				say(report, "Could not find the recordings folder: " + e.getMessage());
+			}
+		}
+
+		@Override
+		public void delete(String name, Report report)
+		{
+			executor.execute(() ->
+			{
+				try
+				{
+					Filepath dir = getPluginDirectory().join(name);
+					if (Names.parse(name) == null || !dir.isDirectory())
+					{
+						say(report, "Not a recording: " + name);
+						return;
+					}
+					dir.deleteRecursively();
+					say(report, "Deleted " + name + ".");
+				}
+				catch (IOException e)
+				{
+					say(report, "Could not delete " + name + ": " + e.getMessage());
+				}
+			});
+		}
+
+		/** The newest recording folder's name, the current one included, or null. Executor thread. */
+		private String latest(Filepath root) throws IOException
+		{
+			List<String> names = new ArrayList<>();
+			try (Stream<Filepath> dirs = root.walk(1))
+			{
+				for (Filepath dir : dirs.filter(p -> !p.equals(root) && p.isDirectory()).collect(Collectors.toList()))
+				{
+					if (Names.parse(dir.getFileName()) != null)
+					{
+						names.add(dir.getFileName());
+					}
+				}
+			}
+			names.sort(Collections.reverseOrder());
+			return names.isEmpty() ? null : names.get(0);
+		}
+
+		private void say(Report report, String text)
+		{
+			SwingUtilities.invokeLater(() -> report.say(text));
+		}
+	}
+
+	/** A finished recording's length from its last line's {@code ms}, or 0. Executor thread. */
+	private static long lengthOf(Filepath dir)
+	{
+		long last = 0;
+		try (BufferedReader in = dir.join(SessionLog.EVENTS_FILE).openBufferedReader())
+		{
+			String text;
+			while ((text = in.readLine()) != null)
+			{
+				int i = text.indexOf("\"ms\":");
+				if (i < 0)
+				{
+					continue;
+				}
+				int start = i + 5, end = start;
+				while (end < text.length() && Character.isDigit(text.charAt(end)))
+				{
+					end++;
+				}
+				if (end > start)
+				{
+					last = Long.parseLong(text.substring(start, end));
+				}
+			}
+		}
+		catch (IOException | NumberFormatException e)
+		{
+			log.debug("Black Box could not read the length of {}", dir, e);
+		}
+		return last;
 	}
 
 	// ---- Watched plugins ----

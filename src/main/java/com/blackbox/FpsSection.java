@@ -18,14 +18,13 @@ import javax.swing.SwingConstants;
 import javax.swing.Timer;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
-import net.runelite.client.ui.PluginPanel;
 
 /**
- * The sidebar: the current frames per second, the low, mean and high over the last 1, 5, 10 and 15 minutes,
- * a small chart of the live series, and below it whatever the plugin puts there (the watched plugins). A click
- * on the chart opens {@link FpsWindow}. Refreshes only while the panel is showing.
+ * The sidebar's frames-per-second section: the current reading, the low, mean and high over the last 1, 5, 10
+ * and 15 minutes, and a small chart of the live series. A click on the chart opens {@link FpsWindow}. Refreshes
+ * only while the panel is showing.
  */
-class FpsPanel extends PluginPanel
+class FpsSection extends JPanel
 {
 	private final FpsSeries live;
 	private final FpsChart chart;
@@ -37,12 +36,11 @@ class FpsPanel extends PluginPanel
 	private final JLabel[][] history = new JLabel[SPANS.length][3];
 	private final Timer timer;
 
-	FpsPanel(FpsSeries live, Runnable openWindow, javax.swing.JComponent below)
+	FpsSection(FpsSeries live, Runnable openWindow)
 	{
-		super();
 		this.live = live;
 		setLayout(new BorderLayout(0, 6));
-		setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+		setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
 		setBackground(ColorScheme.DARK_GRAY_COLOR);
 
 		JPanel top = new JPanel();
@@ -62,39 +60,22 @@ class FpsPanel extends PluginPanel
 
 		chart = new FpsChart(live);
 		chart.setWindow(60_000);
-		chart.setPreferredSize(new Dimension(PANEL_WIDTH - 16, 150));
+		chart.setPreferredSize(new Dimension(net.runelite.client.ui.PluginPanel.PANEL_WIDTH - 16, 150));
 		chart.setShowLabels(false);
 		chart.setOnClick(openWindow);
 		chart.setToolTipText("Click to open the chart in its own window");
 		add(chart, BorderLayout.CENTER);
 
-		JLabel hint = new JLabel("<html><div style='width:190px'>Last minute. Click the chart for its own window and past recordings.</div></html>");
-		hint.setFont(FontManager.getRunescapeSmallFont());
-		hint.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		JPanel bottom = new JPanel();
-		bottom.setLayout(new BoxLayout(bottom, BoxLayout.Y_AXIS));
-		bottom.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		hint.setAlignmentX(LEFT_ALIGNMENT);
-		bottom.add(hint);
-		below.setAlignmentX(LEFT_ALIGNMENT);
-		bottom.add(below);
-		add(bottom, BorderLayout.SOUTH);
+		add(Wrap.text("Last minute. Click the chart for its own window and past recordings."), BorderLayout.SOUTH);
 
 		timer = new Timer(600, e -> refresh());
 		timer.setRepeats(true);
 	}
 
-	@Override
-	public void onActivate()
+	void start()
 	{
 		refresh();
 		timer.start();
-	}
-
-	@Override
-	public void onDeactivate()
-	{
-		timer.stop();
 	}
 
 	void stop()

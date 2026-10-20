@@ -38,7 +38,7 @@ final class FpsSeries
 	static final class Note
 	{
 		final long at;
-		/** plugin, setting, mark, notify, state, session, end. */
+		/** plugin, setting, mark, note, notify, state, session, end, watch. */
 		final String kind;
 		final String text;
 
@@ -265,6 +265,9 @@ final class FpsSeries
 					break;
 				case "mark":
 					series.note(at, kind, "Mark");
+					break;
+				case "note":
+					series.note(at, kind, field(o, "text"));
 					break;
 				case "notify":
 					series.note(at, kind, field(o, "text"));

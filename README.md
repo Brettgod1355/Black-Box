@@ -34,6 +34,28 @@ miss and refused the wrong fixes before they shipped. The worked example below t
   and a screenshot whose frame is drawn after that, on the login screen, while logging in, hopping worlds
   or with the connection lost, is thrown away.
 
+## The sidebar
+
+Click the black box icon in the sidebar. At the top is the recorder: **Record** starts a recording and the card
+shows the red dot, the elapsed time, the recording's name and its size; **Stop** ends it. Under it, **Mark**
+flags this moment, **Share** writes a zip to send to a developer (all of the recording, or the last 10 or 30
+minutes) and copies its path, **Open folder** opens the recordings folder, and the text box adds a note in your
+own words ("the alert did not fire here") at this moment. Then frames per second, the list of recordings with
+Share, Open and Delete for each, and the watched plugins.
+
+### Sending a recording to a developer
+
+A share zip holds `events.jsonl` and a `README.txt` saying what it holds and never holds. It never holds
+screenshots. Open the events file in any text editor first if you want to read it. Attach the zip to the GitHub
+issue or send it where the developer asked.
+
+### Asking a player for a recording (for developers)
+
+Paste this into the issue: "Install Black Box from the Plugin Hub, open its sidebar (the black box icon), add
+*<your plugin>* under Watched plugins, press Record, make the problem happen, type what you saw in the note box
+and press Enter, then press Share and attach the zip it names. It holds no chat from other players, no bank PIN
+and no screenshots; the README inside lists exactly what it holds."
+
 ## Using it
 
 1. Start a developer client with Black Box loaded: `./gradlew run` in this repository starts a client with
