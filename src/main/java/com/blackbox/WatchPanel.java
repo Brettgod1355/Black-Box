@@ -28,8 +28,8 @@ import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 
 /**
- * The sidebar's "Watched plugins" section (layout A): a Set dropdown with Save and Delete, a dropdown of the
- * installed plugins with Add, and one row per watched plugin with its on/off dot and a remove cross. What is
+ * The sidebar's "Watched plugins" section (layout A): a Set dropdown with Save and Delete, a searchable picker of
+ * the installed plugins, and one row per watched plugin with its on/off dot and a remove cross. What is
  * watched is the plugin's business ({@link Model}); this only shows and edits it.
  */
 class WatchPanel extends JPanel
@@ -61,7 +61,7 @@ class WatchPanel extends JPanel
 
 	private final Model model;
 	private final JComboBox<String> sets = new JComboBox<>();
-	private final JComboBox<String> candidates = new JComboBox<>();
+	private final PluginPicker picker = new PluginPicker(this::add);
 	private final JPanel rows = new JPanel();
 	private final javax.swing.JTextArea footer = Wrap.text(" ", null, 3);
 	private boolean adjusting;
@@ -91,12 +91,10 @@ class WatchPanel extends JPanel
 		setRow.add(setButtons, BorderLayout.EAST);
 		add(fullWidth(setRow));
 
-		add(left(dim("Add a plugin")));
 		JPanel addRow = new JPanel(new BorderLayout(4, 0));
 		addRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		candidates.setPrototypeDisplayValue("A long plugin name here");
-		addRow.add(candidates, BorderLayout.CENTER);
-		addRow.add(small("Add", "Watch the chosen plugin", this::addChosen), BorderLayout.EAST);
+		addRow.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
+		addRow.add(picker, BorderLayout.CENTER);
 		add(fullWidth(addRow));
 
 		rows.setLayout(new BoxLayout(rows, BoxLayout.Y_AXIS));
@@ -124,7 +122,6 @@ class WatchPanel extends JPanel
 
 			List<String> watched = model.watched();
 			List<String> free = new ArrayList<>();
-			free.add(CHOOSE);
 			for (String name : model.installed())
 			{
 				if (!watched.contains(name))
@@ -132,7 +129,7 @@ class WatchPanel extends JPanel
 					free.add(name);
 				}
 			}
-			candidates.setModel(new DefaultComboBoxModel<>(free.toArray(new String[0])));
+			picker.setChoices(free);
 
 			rows.removeAll();
 			for (String name : watched)
@@ -179,16 +176,14 @@ class WatchPanel extends JPanel
 		return row;
 	}
 
-	private void addChosen()
+	private void add(String name)
 	{
-		String name = (String) candidates.getSelectedItem();
-		if (name == null || CHOOSE.equals(name))
-		{
-			return;
-		}
 		List<String> names = new ArrayList<>(model.watched());
-		names.add(name);
-		model.setWatched(names);
+		if (!names.contains(name))
+		{
+			names.add(name);
+			model.setWatched(names);
+		}
 		refresh();
 	}
 

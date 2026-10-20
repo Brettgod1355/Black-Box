@@ -78,7 +78,7 @@ animations (set alight, frozen). Other players are left out of all of these, as 
 ## Watched plugins
 
 Pick the plugin, or plugins, you are working on in the sidebar: **Set** keeps named groups of them (Save, Del),
-**Add a plugin** lists everything installed, and each watched plugin is a row with its on/off dot and a cross to
+**Add a plugin** drops down a search box over everything installed (type part of a name to narrow it), and each watched plugin is a row with its on/off dot and a cross to
 stop watching it. While recording, Black Box writes a `watch` line naming the watched plugins and a `settings` line
 per watched plugin with every one of its current settings, and when one of those settings changes the `setting`
 line carries the new value. That is how a recording shows what a plugin's settings were while something happened.
