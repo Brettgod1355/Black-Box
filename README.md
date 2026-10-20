@@ -50,7 +50,7 @@ the watched plugins.
 
 A clip reaches back across recordings, so a bug just before a logout is still in it. It holds `events.jsonl`
 (each recording's slice starting with its first lines, so the settings in force are always there),
-`client-log.txt` for the same minutes, and a `README.txt` saying what they hold and never hold. Pictures go in
+`client-log.txt` for the same minutes plus every warning and error since the client started, and a `README.txt` saying what they hold and never hold. Pictures go in
 only if **Pictures in clips** is on. Open any file in a text editor first if you want to read it. Attach the
 zip to the GitHub issue or send it where the developer asked. Clips are written to the `clips` folder and the
 path is copied to your clipboard.

@@ -62,16 +62,23 @@ public class ClipBundleTest
 	{
 		String log = String.join("\n",
 			"2026-10-20 18:00:00 CDT [Client] INFO  n.r.c.RuneLite - RuneLite version 1.13.2",
+			"2026-10-20 18:01:00 CDT [Client] ERROR n.r.c.e.EventBus - Error in event handler",
+			"java.lang.NullPointerException: early",
+			"\tat com.other.Plugin.onGameTick(Plugin.java:10)",
 			"2026-10-20 18:05:00 CDT [Client] WARN  c.s.SafeSailingPlugin - Hazard map not loaded",
 			"java.io.IOException: missing",
 			"\tat com.safesailing.HazardMap.load(HazardMap.java:60)",
 			"2026-10-20 18:09:00 CDT [Client] INFO  n.r.c.p.PluginManager - Plugin started");
 		List<String> all = readLog(log, null);
-		assertEquals(5, all.size());
+		assertEquals(8, all.size());
 		List<String> late = readLog(log, LocalDateTime.of(2026, 10, 20, 18, 4, 0));
-		assertEquals(4, late.size());
-		assertTrue(late.get(0).contains("Hazard map"));
+		assertEquals(7, late.size());                                  // the early error and its trace stay, the version line goes
+		assertTrue(late.get(0).contains("Error in event handler"));
 		assertTrue(late.get(2).startsWith("\tat"));
+		assertTrue(late.get(3).contains("Hazard map"));
+		assertTrue(late.stream().noneMatch(l -> l.contains("RuneLite version")));
+		assertTrue(ClipBundle.isWarningOrError("2026-10-20 18:01:00 CDT [Client] ERROR x - y"));
+		assertTrue(ClipBundle.isWarningOrError("2026-10-20 18:01:00 CDT [Client] WARN  x - y"));
 		assertNull(ClipBundle.stamp("\tat something"));
 		assertEquals(LocalDateTime.of(2026, 10, 20, 18, 9, 0), ClipBundle.stamp("2026-10-20 18:09:00 CDT [Client] INFO x"));
 	}

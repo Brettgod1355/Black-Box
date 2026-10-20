@@ -44,8 +44,8 @@ final class ClipBundle
 		+ "frames per second, which plugins were installed and switched, every plugin's settings (webhooks, keys and\n"
 		+ "secrets withheld), and the ground around you. Each recording's slice starts with its first lines, so the\n"
 		+ "settings in force are always in the file.\n"
-		+ "client-log.txt holds the client's own log lines for the same minutes, as RuneLite's client.log would, caught\n"
-		+ "inside the client with your name and home folder replaced.\n"
+		+ "client-log.txt holds the client's own log lines for the same minutes, plus every warning and error since the\n"
+		+ "client started, as RuneLite's client.log would, caught inside the client with your name and home folder replaced.\n"
 		+ "shots/ holds pictures of the game view at the marked moments, only if you turned that on; the chat box is\n"
 		+ "blacked out in them.\n"
 		+ "It never holds: other players' chat, your bank PIN, your character name (written as <you>), webhooks, keys or\n"
@@ -163,8 +163,9 @@ final class ClipBundle
 	}
 
 	/**
-	 * The client log's lines stamped at or after a moment (local time), with the stack-trace lines that follow a
-	 * kept line; everything when {@code since} is null.
+	 * The client log's lines for a clip: every WARN and ERROR line from the whole recording, with the stack-trace
+	 * lines that follow it (an error an hour before the clip is often the cause of what the player saw), plus
+	 * every line stamped at or after {@code since}; everything when {@code since} is null.
 	 */
 	static List<String> trimLog(BufferedReader in, LocalDateTime since) throws IOException
 	{
@@ -176,7 +177,7 @@ final class ClipBundle
 			LocalDateTime at = stamp(text);
 			if (at != null)
 			{
-				keeping = since == null || !at.isBefore(since);
+				keeping = since == null || !at.isBefore(since) || isWarningOrError(text);
 			}
 			if (keeping)
 			{
@@ -184,6 +185,18 @@ final class ClipBundle
 			}
 		}
 		return out;
+	}
+
+	/** Whether a stamped client log line is at WARN or ERROR level. */
+	static boolean isWarningOrError(String line)
+	{
+		int bracket = line.indexOf("] ");
+		if (bracket < 0 || bracket + 7 > line.length())
+		{
+			return false;
+		}
+		String level = line.substring(bracket + 2, bracket + 7);
+		return level.startsWith("WARN") || level.startsWith("ERROR");
 	}
 
 	/** The timestamp a client log line starts with, or null for a continuation line. */
