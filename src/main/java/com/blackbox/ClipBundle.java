@@ -54,7 +54,8 @@ final class ClipBundle
 		+ "passwords, or anything outside the game client.\n"
 		+ "You can open every file in any text editor or image viewer and look before sending.\n"
 		+ "How to read it, for a person or an AI assistant: https://github.com/Brettgod1355/runelite-black-box/blob/main/READING.md\n"
-		+ "Every line kind and field: https://github.com/Brettgod1355/runelite-black-box/blob/main/FORMAT.md\n";
+		+ "Every line kind and field: https://github.com/Brettgod1355/runelite-black-box/blob/main/FORMAT.md\n"
+		+ "Running it through a plugin in a test: https://github.com/Brettgod1355/runelite-black-box/blob/main/REPLAY.md\n";
 	private static final DateTimeFormatter LOG_STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
 	/** One recording that may contribute to a clip. */

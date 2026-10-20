@@ -65,6 +65,12 @@ press Save flag, then press Export and pick the last 10 minutes, and attach the 
 holds no chat from other players, no bank PIN and no pictures unless you turn those on; the README inside lists
 exactly what it holds."
 
+## Replay
+
+`REPLAY.md` says what replay is for, where it lives (your plugin's test sources, with a copy of the reader and
+a git-ignored `recordings/` folder), what a developer does step by step, a minimal test, and the paragraph to
+hand an AI assistant to add replay to a plugin or read what a replay found.
+
 ## Reading a recording
 
 `FORMAT.md` lists every line kind and every field; `READING.md` is the short guide, the five questions a
