@@ -52,9 +52,9 @@ final class ClipBundle
 		+ "%NEVER% your bank PIN, your character name (written as <you>), webhooks, keys or\n"
 		+ "passwords, or anything outside the game client.\n"
 		+ "You can open every file in any text editor or image viewer and look before sending.\n"
-		+ "How to read it, for a person or an AI assistant: https://github.com/Brettgod1355/runelite-black-box/blob/main/READING.md\n"
-		+ "Every line kind and field: https://github.com/Brettgod1355/runelite-black-box/blob/main/FORMAT.md\n"
-		+ "Running it through a plugin in a test: https://github.com/Brettgod1355/runelite-black-box/blob/main/REPLAY.md\n";
+		+ "How to read it, for a person or an AI assistant: https://github.com/Brettgod1355/Black-Box/blob/main/READING.md\n"
+		+ "Every line kind and field: https://github.com/Brettgod1355/Black-Box/blob/main/FORMAT.md\n"
+		+ "Running it through a plugin in a test: https://github.com/Brettgod1355/Black-Box/blob/main/REPLAY.md\n";
 
 	/**
 	 * The README for a clip: what the pictures show depends on whether there are any and on the Hide chat setting,
