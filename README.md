@@ -65,6 +65,13 @@ press Save flag, then press Export and pick the last 10 minutes, and attach the 
 holds no chat from other players, no bank PIN and no pictures unless you turn those on; the README inside lists
 exactly what it holds."
 
+## Reading a recording
+
+`FORMAT.md` lists every line kind and every field; `READING.md` is the short guide, the five questions a
+developer asks and where the answers are, and the paragraph to hand an AI assistant along with an export. An
+export's `names.txt` names every varbit, interface, sound, animation, NPC, object and item id the lines mention.
+A test keeps `FORMAT.md` honest: every kind of line the plugin can write must have a section there.
+
 ## Using it
 
 1. Start a developer client with Black Box loaded: `./gradlew run` in this repository starts a client with

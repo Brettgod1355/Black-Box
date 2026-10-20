@@ -162,6 +162,8 @@ public class BlackBoxPlugin extends Plugin
 	private int pendingMarkTick = -1;
 	private long pendingMarkAt;
 	private BufferedImage pendingMarkImage;
+	/** The names behind the numbers, loaded the first time an export needs them; executor thread. */
+	private IdNames idNames;
 	/** The client's log, caught inside the client; attached while the plugin runs. */
 	private final ClientLogTap logTap = new ClientLogTap(System.getProperty("user.home"));
 	/** Regions whose collision flags this recording already holds; client thread. */
@@ -1090,7 +1092,7 @@ public class BlackBoxPlugin extends Plugin
 					{
 						current.flush();
 					}
-					Filepath zip = ClipBundle.write(gson, root, sources, 0, config.picturesInClips(), name + ".zip");
+					Filepath zip = ClipBundle.write(gson, root, sources, 0, config.picturesInClips(), name + ".zip", names());
 					done(report, zip);
 				}
 				catch (IOException e)
@@ -1121,7 +1123,7 @@ public class BlackBoxPlugin extends Plugin
 						say(report, "Nothing recorded in that time.");
 						return;
 					}
-					Filepath zip = ClipBundle.write(gson, root, covering, whole ? 0 : since, config.picturesInClips(), fileName);
+					Filepath zip = ClipBundle.write(gson, root, covering, whole ? 0 : since, config.picturesInClips(), fileName, names());
 					done(report, zip);
 				}
 				catch (IOException e)
@@ -1130,6 +1132,23 @@ public class BlackBoxPlugin extends Plugin
 					say(report, "Could not write the clip: " + e.getMessage());
 				}
 			});
+		}
+
+		/** The bundled names table, loaded once; null when it cannot be read (the export then has no names.txt). */
+		private IdNames names()
+		{
+			if (idNames == null)
+			{
+				try
+				{
+					idNames = IdNames.load();
+				}
+				catch (IOException e)
+				{
+					log.warn("Black Box could not load its names table", e);
+				}
+			}
+			return idNames;
 		}
 
 		private void done(Report report, Filepath zip)

@@ -46,11 +46,15 @@ final class ClipBundle
 		+ "settings in force are always in the file.\n"
 		+ "client-log.txt holds the client's own log lines for the same minutes, plus every warning and error since the\n"
 		+ "client started, as RuneLite's client.log would, caught inside the client with your name and home folder replaced.\n"
+		+ "names.txt gives RuneLite's name for every varbit, interface, sound, animation, NPC, object and item id the\n"
+		+ "events mention.\n"
 		+ "shots/ holds pictures of the game view at the marked moments, only if you turned that on; the chat box is\n"
 		+ "blacked out in them.\n"
 		+ "It never holds: other players' chat, your bank PIN, your character name (written as <you>), webhooks, keys or\n"
 		+ "passwords, or anything outside the game client.\n"
-		+ "You can open every file in any text editor or image viewer and look before sending.\n";
+		+ "You can open every file in any text editor or image viewer and look before sending.\n"
+		+ "How to read it, for a person or an AI assistant: https://github.com/Brettgod1355/runelite-black-box/blob/main/READING.md\n"
+		+ "Every line kind and field: https://github.com/Brettgod1355/runelite-black-box/blob/main/FORMAT.md\n";
 	private static final DateTimeFormatter LOG_STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
 	/** One recording that may contribute to a clip. */
@@ -264,6 +268,12 @@ final class ClipBundle
 	 */
 	static Filepath write(Gson gson, Filepath root, List<Source> sources, long since, boolean pictures, String fileName) throws IOException
 	{
+		return write(gson, root, sources, since, pictures, fileName, null);
+	}
+
+	/** As above, with the names table for a {@code names.txt} (skipped when null). */
+	static Filepath write(Gson gson, Filepath root, List<Source> sources, long since, boolean pictures, String fileName, IdNames names) throws IOException
+	{
 		Filepath clips = root.join(CLIPS_DIR);
 		clips.createDirectories();
 		Filepath zip = clips.join(fileName);
@@ -316,6 +326,17 @@ final class ClipBundle
 				out.write('\n');
 			}
 			out.closeEntry();
+			if (names != null)
+			{
+				out.putNextEntry(new ZipEntry(IdNames.FILE));
+				out.write("# The names behind the numbers in events.jsonl: kind, id, RuneLite's name for it. ? = not in the table.\n".getBytes(StandardCharsets.UTF_8));
+				for (String line : names.tableFor(gson, events))
+				{
+					out.write(line.getBytes(StandardCharsets.UTF_8));
+					out.write('\n');
+				}
+				out.closeEntry();
+			}
 			for (Map.Entry<String, List<String>> entry : shots.entrySet())
 			{
 				for (String name : entry.getValue())
