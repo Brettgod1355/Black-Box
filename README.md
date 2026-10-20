@@ -275,4 +275,6 @@ them; the translator fills the rest in your plugin's own way or leaves it out.
 
 ## License
 
-BSD 2-Clause, like RuneLite. See `LICENSE`.
+BSD 2-Clause, like RuneLite. See `LICENSE`. The parts that come from elsewhere (the id names table, from RuneLite's
+API, and the Gradle wrapper) and how to credit `Recording.java` when you copy it are in
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md), which is also inside the plugin JAR.
