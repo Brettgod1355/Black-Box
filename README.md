@@ -78,7 +78,9 @@ on the chart.
 An export reaches back across recordings, so a bug just before a logout is still in it. It holds `events.jsonl`
 (each recording's slice starting with its first lines, so the settings in force are always there),
 `client-log.txt` for the same minutes plus every warning and error since the client started, and a `README.txt` saying what they hold and never hold. Pictures go in
-only if **Pictures in clips** is on. Open any file in a text editor first if you want to read it. Attach the
+only if **Pictures in clips** is on, and the clip's `README.txt` says whether the chat box is blacked out in them
+(**Hide the chat box**); with it off, they can show your name and other players'. Open any file in a text editor
+first if you want to read it. Attach the
 zip to the GitHub issue or send it where the developer asked. Exports are written to the `clips` folder and the
 path is copied to your clipboard.
 

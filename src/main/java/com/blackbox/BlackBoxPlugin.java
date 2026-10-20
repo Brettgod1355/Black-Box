@@ -1127,7 +1127,7 @@ public class BlackBoxPlugin extends Plugin
 					{
 						current.flush();
 					}
-					Filepath zip = ClipBundle.write(gson, root, sources, 0, config.picturesInClips(), name + ".zip", names());
+					Filepath zip = ClipBundle.write(gson, root, sources, 0, config.picturesInClips(), config.hideChat(), name + ".zip", names());
 					done(report, zip);
 				}
 				catch (IOException e)
@@ -1158,7 +1158,7 @@ public class BlackBoxPlugin extends Plugin
 						say(report, "Nothing recorded in that time.");
 						return;
 					}
-					Filepath zip = ClipBundle.write(gson, root, covering, whole ? 0 : since, config.picturesInClips(), fileName, names());
+					Filepath zip = ClipBundle.write(gson, root, covering, whole ? 0 : since, config.picturesInClips(), config.hideChat(), fileName, names());
 					done(report, zip);
 				}
 				catch (IOException e)

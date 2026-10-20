@@ -48,14 +48,43 @@ final class ClipBundle
 		+ "client started, as RuneLite's client.log would, caught inside the client with your name and home folder replaced.\n"
 		+ "names.txt gives RuneLite's name for every varbit, interface, sound, animation, NPC, object and item id the\n"
 		+ "events mention.\n"
-		+ "shots/ holds pictures of the game view at the marked moments, only if you turned that on; the chat box is\n"
-		+ "blacked out in them.\n"
-		+ "It never holds: other players' chat, your bank PIN, your character name (written as <you>), webhooks, keys or\n"
+		+ "%PICTURES%"
+		+ "%NEVER% your bank PIN, your character name (written as <you>), webhooks, keys or\n"
 		+ "passwords, or anything outside the game client.\n"
 		+ "You can open every file in any text editor or image viewer and look before sending.\n"
 		+ "How to read it, for a person or an AI assistant: https://github.com/Brettgod1355/runelite-black-box/blob/main/READING.md\n"
 		+ "Every line kind and field: https://github.com/Brettgod1355/runelite-black-box/blob/main/FORMAT.md\n"
 		+ "Running it through a plugin in a test: https://github.com/Brettgod1355/runelite-black-box/blob/main/REPLAY.md\n";
+
+	/**
+	 * The README for a clip: what the pictures show depends on whether there are any and on the Hide chat setting,
+	 * and a clip never claims the chat is blacked out when it is not.
+	 */
+	static String readme(boolean pictures, boolean chatHidden)
+	{
+		String shots;
+		String never;
+		if (!pictures)
+		{
+			shots = "There are no pictures: Pictures in clips is off in Black Box's settings, or none were taken.\n";
+			never = "It never holds: other players' chat,";
+		}
+		else if (chatHidden)
+		{
+			shots = "shots/ holds pictures of the game view from these minutes. The chat box is blacked out in them, but a\n"
+				+ "notice drawn outside it (a friend logging in, split private chat) and anything else on screen can still\n"
+				+ "show: look at them before sending.\n";
+			never = "Apart from what the pictures show, it never holds: other players' chat,";
+		}
+		else
+		{
+			shots = "shots/ holds pictures of the game view from these minutes, and the chat box is NOT blacked out in them\n"
+				+ "(Hide chat is off in Black Box's settings): they can show your character name and other players' names\n"
+				+ "and chat. Look at them before sending, or turn Pictures in clips off and export again.\n";
+			never = "Apart from what the pictures show, it never holds: other players' chat,";
+		}
+		return README.replace("%PICTURES%", shots).replace("%NEVER%", never);
+	}
 	private static final DateTimeFormatter LOG_STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
 	/** One recording that may contribute to a clip. */
@@ -269,21 +298,18 @@ final class ClipBundle
 	 */
 	static Filepath write(Gson gson, Filepath root, List<Source> sources, long since, boolean pictures, String fileName) throws IOException
 	{
-		return write(gson, root, sources, since, pictures, fileName, null);
+		return write(gson, root, sources, since, pictures, true, fileName, null);
 	}
 
 	/** As above, with the names table for a {@code names.txt} (skipped when null). */
-	static Filepath write(Gson gson, Filepath root, List<Source> sources, long since, boolean pictures, String fileName, IdNames names) throws IOException
+	static Filepath write(Gson gson, Filepath root, List<Source> sources, long since, boolean pictures, boolean chatHidden,
+		String fileName, IdNames names) throws IOException
 	{
 		Filepath clips = root.join(CLIPS_DIR);
 		clips.createDirectories();
 		Filepath zip = clips.join(fileName);
 		try (OutputStream raw = zip.openOutputStream(); ZipOutputStream out = new ZipOutputStream(raw))
 		{
-			out.putNextEntry(new ZipEntry("README.txt"));
-			out.write(README.getBytes(StandardCharsets.UTF_8));
-			out.closeEntry();
-
 			List<String> events = new ArrayList<>();
 			List<String> log = new ArrayList<>();
 			Map<String, List<String>> shots = new LinkedHashMap<>();
@@ -313,6 +339,10 @@ final class ClipBundle
 					}
 				}
 			}
+			boolean anyPicture = shots.values().stream().anyMatch(list -> !list.isEmpty());
+			out.putNextEntry(new ZipEntry("README.txt"));
+			out.write(readme(anyPicture, chatHidden).getBytes(StandardCharsets.UTF_8));
+			out.closeEntry();
 			out.putNextEntry(new ZipEntry(SessionLog.EVENTS_FILE));
 			for (String line : events)
 			{

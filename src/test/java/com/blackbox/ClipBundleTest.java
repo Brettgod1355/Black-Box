@@ -7,6 +7,7 @@ package com.blackbox;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.gson.Gson;
@@ -111,8 +112,31 @@ public class ClipBundleTest
 	@Test
 	public void readmeSaysWhatItNeverHolds()
 	{
-		assertTrue(ClipBundle.README.contains("never holds"));
-		assertTrue(ClipBundle.README.contains("bank PIN"));
-		assertTrue(ClipBundle.README.contains("only if you turned that on"));
+		for (boolean pictures : new boolean[]{false, true})
+		{
+			for (boolean chatHidden : new boolean[]{false, true})
+			{
+				String readme = ClipBundle.readme(pictures, chatHidden);
+				assertTrue(readme.contains("never holds: other players' chat, your bank PIN"));
+				assertFalse("no placeholder left", readme.contains("%"));
+			}
+		}
+	}
+
+	@Test
+	public void readmeNeverClaimsAChatBlackoutThatIsOff()
+	{
+		String none = ClipBundle.readme(false, false);
+		assertTrue(none.contains("There are no pictures"));
+		assertFalse(none.contains("shots/"));
+
+		String hidden = ClipBundle.readme(true, true);
+		assertTrue(hidden.contains("The chat box is blacked out in them"));
+		assertTrue(hidden.contains("Apart from what the pictures show"));
+
+		String open = ClipBundle.readme(true, false);
+		assertTrue(open.contains("the chat box is NOT blacked out"));
+		assertFalse(open.contains("is blacked out in them"));
+		assertTrue(open.contains("Apart from what the pictures show"));
 	}
 }
