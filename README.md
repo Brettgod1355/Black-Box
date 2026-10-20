@@ -36,6 +36,31 @@ miss and refused the wrong fixes before they shipped. The worked example below t
   and a screenshot whose frame is drawn after that, on the login screen, while logging in, hopping worlds
   or with the connection lost, is thrown away.
 
+## How a developer uses it
+
+There is no live link between a player and a developer, and nothing in this needs the game open to read.
+
+1. **The player records without doing anything.** With Black Box on, the client writes what the game sent, what
+   the client did, every plugin's settings and the client's own log into a folder on the player's machine, tick
+   by tick. When something goes wrong they press Mark, say what happened, and press Export. That writes one zip.
+   They attach it to the issue. Their part is done; the client can be closed.
+2. **The developer reads the zip.** It holds text files and, if the player allowed it, a few pictures. No game, no
+   connection to the player, nothing that runs. `READING.md` gives the five questions and where the answers are:
+   what was installed, how was my plugin set, what happened around the mark, were there errors, what did the game
+   send against what my plugin should have done. `names.txt` names every number. Most bug reports end here.
+3. **Replay, when reading is not enough.** The developer drops the events file into a git-ignored `recordings/`
+   folder in their plugin's clone and runs the plugin's replay test (`REPLAY.md`). The test reads the file in
+   tick order and hands each line to the plugin's decision code, which answers as it would have in play: warn
+   now, the hold holds 12, no hazard. The test writes those answers to a report or asserts them. The developer
+   sees their plugin's decisions laid against what the game actually sent, for a session they never played;
+   they fix the code and run the same file again to see the fix hold.
+
+Replay is a unit test, so it runs wherever the plugin's tests run: IntelliJ, any other IDE, or the command line
+(`./gradlew test`, the same command the Plugin Hub runs). No client is open, nothing is drawn, nothing moves.
+The only pictures are the ones the player allowed, of their screen at the marked moments. The frames-per-second
+window in the sidebar can open a recording and show its chart with the markers, which is the nearest thing to
+watching it.
+
 ## The sidebar
 
 Click the black box icon in the sidebar. Recording starts by itself when you log in; the card at the top shows
