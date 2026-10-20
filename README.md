@@ -44,6 +44,15 @@ miss and refused the wrong fixes before they shipped. The worked example below t
 3. Play as you normally would. Set a **Mark hotkey** to flag a moment worth a look later.
 4. Turn **Record** off, or log out, to finish.
 
+## The world around you
+
+Every `tick` line also carries the ground or water under you: the scene's overlay and underlay ids of the tile
+under your feet, or under the hull when you are aboard (`overlay`, `underlay`), and aboard, which way the hull
+points (`boatDir`, 0 to 2047, 0 south). The first time a whole region is loaded, a `collision` line holds its
+movement flags, 64 by 64, the same data the client uses for pathing. An `npcTarget` line marks the moment an NPC
+starts or stops targeting you, `npcAnim` each animation an NPC in view plays, and `graphic` your own spot
+animations (set alight, frozen). Other players are left out of all of these, as everywhere else.
+
 ## Watched plugins
 
 Pick the plugin, or plugins, you are working on in the sidebar: **Set** keeps named groups of them (Save, Del),

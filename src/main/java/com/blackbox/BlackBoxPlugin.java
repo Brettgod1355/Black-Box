@@ -23,7 +23,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -34,7 +36,10 @@ import javax.swing.SwingUtilities;
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import net.runelite.api.Actor;
+import net.runelite.api.ActorSpotAnim;
 import net.runelite.api.Client;
+import net.runelite.api.CollisionData;
+import net.runelite.api.Scene;
 import net.runelite.api.GameObject;
 import net.runelite.api.GameState;
 import net.runelite.api.Item;
@@ -44,12 +49,15 @@ import net.runelite.api.WorldEntity;
 import net.runelite.api.WorldView;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.events.AnimationChanged;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameObjectDespawned;
 import net.runelite.api.events.GameObjectSpawned;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
+import net.runelite.api.events.GraphicChanged;
 import net.runelite.api.events.HitsplatApplied;
+import net.runelite.api.events.InteractingChanged;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.NpcDespawned;
@@ -146,6 +154,10 @@ public class BlackBoxPlugin extends Plugin
 
 	/** The watched plugins' config groups, for the setting lines; client thread. */
 	private final Map<String, Plugin> watchedGroups = new HashMap<>();
+	/** Regions whose collision flags this recording already holds; client thread. */
+	private final Set<Integer> collisionDone = new HashSet<>();
+	/** NPC indexes that are targeting the player right now, so the end of it gets a line too; client thread. */
+	private final Set<Integer> targetingMe = new HashSet<>();
 	private WatchPanel watchPanel;
 
 	/** Frames per second since the plugin started, recording or not: what the sidebar and the window show live. */
@@ -259,6 +271,8 @@ public class BlackBoxPlugin extends Plugin
 		String name = LocalDateTime.now().format(SESSION_NAME);
 		SessionLog started = new SessionLog(name, root.join(name), now);
 		session = started;
+		collisionDone.clear();
+		targetingMe.clear();
 		shotCount = 0;
 		lastShotAt = 0;
 		npcTiles.clear();
@@ -422,6 +436,7 @@ public class BlackBoxPlugin extends Plugin
 			point(o, "", me.getWorldLocation());
 			o.addProperty("anim", me.getAnimation());
 			WorldEntity boat = view == null || view.isTopLevel() ? null : boatOf(view);
+			LocalPoint ground = me.getLocalLocation();
 			if (boat != null)
 			{
 				// Aboard a boat: where the player and the boat are in the top-level world too.
@@ -431,6 +446,22 @@ public class BlackBoxPlugin extends Plugin
 				point(o, "boat", hull == null ? null : WorldPoint.fromLocal(client, hull));
 				o.addProperty("boatConfig", boat.getConfig() == null ? -1 : boat.getConfig().getId());
 				o.addProperty("boatOwner", boat.getOwnerType());
+				// Which way the hull points (0 to 2047, 0 south), for anything that depends on heading.
+				o.addProperty("boatDir", boat.getOrientation());
+				ground = hull;
+			}
+			// The ground, or water, under the player (ashore) or under the hull (aboard): the scene's overlay and
+			// underlay ids, the same ids a map built from the game's files uses. World data, not about anyone.
+			WorldView top = client.getTopLevelWorldView();
+			if (top != null && ground != null && (boat != null || view == top))
+			{
+				Scene scene = top.getScene();
+				int plane = top.getPlane();
+				short[][][] overlays = scene == null ? null : scene.getOverlayIds();
+				short[][][] underlays = scene == null ? null : scene.getUnderlayIds();
+				o.addProperty("overlay", overlays == null || plane >= overlays.length ? -1 : SceneData.at(overlays[plane], ground.getSceneX(), ground.getSceneY()));
+				o.addProperty("underlay", underlays == null || plane >= underlays.length ? -1 : SceneData.at(underlays[plane], ground.getSceneX(), ground.getSceneY()));
+				collision(top, WorldPoint.fromLocal(client, ground));
 			}
 		}
 		session.add(o);
@@ -1083,6 +1114,126 @@ public class BlackBoxPlugin extends Plugin
 				return FpsSeries.fromRecording(name, gson, in);
 			}
 		}
+	}
+
+	// ---- The world around the boat ----
+
+	/**
+	 * A region's collision flags, once per recording, the first time the whole region is inside the loaded scene:
+	 * what a boat can and cannot sail through, and what a walker can and cannot cross. World data, not about
+	 * anyone; what Shortest Path reads live. About 4,096 numbers per region. Client thread.
+	 */
+	private void collision(WorldView top, WorldPoint at)
+	{
+		if (at == null || session == null)
+		{
+			return;
+		}
+		int region = at.getRegionID();
+		if (collisionDone.contains(region))
+		{
+			return;
+		}
+		CollisionData[] maps = top.getCollisionMaps();
+		int plane = top.getPlane();
+		if (maps == null || plane >= maps.length || maps[plane] == null)
+		{
+			return;
+		}
+		int[][] flags = SceneData.regionFlags(maps[plane].getFlags(), top.getBaseX(), top.getBaseY(), (region >> 8) * 64, (region & 0xff) * 64);
+		if (flags == null)
+		{
+			return; // not fully loaded yet; try again next tick
+		}
+		collisionDone.add(region);
+		JsonObject o = line("collision");
+		o.addProperty("region", region);
+		o.addProperty("plane", plane);
+		o.addProperty("x", (region >> 8) * 64);
+		o.addProperty("y", (region & 0xff) * 64);
+		JsonArray rows = new JsonArray();
+		for (int[] column : flags)
+		{
+			JsonArray row = new JsonArray();
+			for (int flag : column)
+			{
+				row.add(flag);
+			}
+			rows.add(row);
+		}
+		o.add("flags", rows);
+		session.add(o);
+	}
+
+	@Subscribe
+	public void onInteractingChanged(InteractingChanged event)
+	{
+		// When an NPC starts or stops targeting you: the aggro moment. Another player as the target is never
+		// recorded; a stop line names no one.
+		Actor source = event.getSource();
+		if (session == null || !(source instanceof NPC))
+		{
+			return;
+		}
+		NPC npc = (NPC) source;
+		boolean me = event.getTarget() != null && event.getTarget() == client.getLocalPlayer();
+		boolean was = targetingMe.contains(npc.getIndex());
+		if (me == was)
+		{
+			return;
+		}
+		if (me)
+		{
+			targetingMe.add(npc.getIndex());
+		}
+		else
+		{
+			targetingMe.remove(npc.getIndex());
+		}
+		JsonObject o = line("npcTarget");
+		o.addProperty("npc", npc.getId());
+		o.addProperty("index", npc.getIndex());
+		o.addProperty("name", scrub(npc.getName()));
+		o.addProperty("on", me);
+		worldView(o, npc.getWorldView());
+		session.add(o);
+	}
+
+	@Subscribe
+	public void onAnimationChanged(AnimationChanged event)
+	{
+		// NPCs only (the player's own animation is on every tick line; other players are never recorded).
+		Actor actor = event.getActor();
+		if (session == null || !(actor instanceof NPC))
+		{
+			return;
+		}
+		NPC npc = (NPC) actor;
+		JsonObject o = line("npcAnim");
+		o.addProperty("npc", npc.getId());
+		o.addProperty("index", npc.getIndex());
+		o.addProperty("anim", npc.getAnimation());
+		worldView(o, npc.getWorldView());
+		session.add(o);
+	}
+
+	@Subscribe
+	public void onGraphicChanged(GraphicChanged event)
+	{
+		// Your own spot animations: being set alight, frozen or diseased shows here, timed against the warnings.
+		Actor actor = event.getActor();
+		if (session == null || actor == null || actor != client.getLocalPlayer())
+		{
+			return;
+		}
+		JsonObject o = line("graphic");
+		JsonArray ids = new JsonArray();
+		for (ActorSpotAnim spot : actor.getSpotAnims())
+		{
+			ids.add(spot.getId());
+		}
+		o.add("ids", ids);
+		session.add(o);
 	}
 
 	// ---- The bank PIN ----

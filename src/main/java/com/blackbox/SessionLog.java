@@ -23,11 +23,11 @@ final class SessionLog
 	 * reader may want to rely on. 1: the 0.1 lines. 2: {@code sound} lines. 3: {@code fps} on every {@code tick}
 	 * line, and {@code plugin} (name, on) and {@code setting} (group, key) lines. 4: {@code watch} (the watched
 	 * plugins) and {@code settings} (a watched plugin's values, secrets withheld) lines; a {@code setting} line of a
-	 * watched plugin carries {@code plugin} and {@code value}. 5: {@code npcAdd} and {@code npcGone}
-	 * carry the NPC's main-world {@code x}, {@code y}, {@code plane}, and {@code npcMove} lines list main-world NPCs
-	 * whose tile changed that tick.
+	 * watched plugin carries {@code plugin} and {@code value}. 5: NPC positions ({@code npcAdd}/{@code npcGone} tiles,
+	 * {@code npcMove}). 6: {@code boatDir}, {@code overlay} and {@code underlay} on {@code tick} lines; {@code collision}
+	 * (a region's flags, once), {@code npcTarget}, {@code npcAnim} and {@code graphic} lines.
 	 */
-	static final int FORMAT = 5;
+	static final int FORMAT = 6;
 	static final String EVENTS_FILE = "events.jsonl";
 	static final String SHOTS_DIR = "shots";
 
