@@ -28,8 +28,10 @@ miss and refused the wrong fixes before they shipped. The worked example below t
   screenshots are recorded, so neither a clicked button nor a picture of the shuffled keypad ends up in a
   recording. It never listens to your keyboard either, except for the Mark hotkey, so a PIN typed on the
   number pad is not recorded.
-- It never records another plugin's setting values unless you put that plugin on the watched list, and even then
-  never a setting marked secret, nor free text that looks like a link or a token.
+- It never records a setting marked secret, nor a webhook, key, password or token in any setting; the rest of
+  every plugin's settings are recorded, so a developer can see what was on.
+- It never reads RuneLite's log file. The client's log lines in a recording are caught inside the client as they
+  happen, with your name and home folder replaced.
 - It never records the login screen. A recording starts once you are logged in and ends when you log out,
   and a screenshot whose frame is drawn after that, on the login screen, while logging in, hopping worlds
   or with the connection lost, is thrown away.
@@ -45,8 +47,8 @@ Share, Open and Delete for each, and the watched plugins.
 
 ### Sending a recording to a developer
 
-A share zip holds `events.jsonl` and a `README.txt` saying what it holds and never holds. It never holds
-screenshots. Open the events file in any text editor first if you want to read it. Attach the zip to the GitHub
+A share zip holds `events.jsonl`, `client-log.txt` and a `README.txt` saying what they hold and never hold. It
+never holds screenshots. Open the events file in any text editor first if you want to read it. Attach the zip to the GitHub
 issue or send it where the developer asked.
 
 ### Asking a player for a recording (for developers)
@@ -75,18 +77,26 @@ movement flags, 64 by 64, the same data the client uses for pathing. An `npcTarg
 starts or stops targeting you, `npcAnim` each animation an NPC in view plays, and `graphic` your own spot
 animations (set alight, frozen). Other players are left out of all of these, as everywhere else.
 
+## Every plugin's settings, and the client's own log
+
+While recording, Black Box writes a `plugins` line naming every installed plugin with on or off and a `settings`
+line per plugin with every one of its current settings, free text included (highlight lists, block lists, names
+you typed into a plugin are what a developer needs to see). Withheld, always: a setting the plugin marks secret,
+a hidden one, and anything that is a webhook, a key, a password or a token, by its key name or by what it looks
+like, written as `<secret>` or `<withheld>`. When a setting changes, the `setting` line carries the new value.
+
+Beside the events, `client-log.txt` holds the client's own log for the same time: every INFO, WARN and ERROR line
+RuneLite and its plugins logged, in the shape of RuneLite's `client.log`, with stack traces cut short. Black Box
+never reads the log file; it listens to the client's logging as it happens, keeps the last lines from before you
+pressed Record, and replaces your name and your home folder in every line. A developer who would have asked for
+`client.log` gets it in the share zip instead.
+
 ## Watched plugins
 
-Pick the plugin, or plugins, you are working on in the sidebar: **Set** keeps named groups of them (Save, Del),
-**Add a plugin** drops down a search box over everything installed (type part of a name to narrow it), and each watched plugin is a row with its on/off dot and a cross to
-stop watching it. While recording, Black Box writes a `watch` line naming the watched plugins and a `settings` line
-per watched plugin with every one of its current settings, and when one of those settings changes the `setting`
-line carries the new value. That is how a recording shows what a plugin's settings were while something happened.
-
-Only watched plugins get their values written. A setting the plugin marks secret is written as `<secret>`, a
-hidden one is left out, and free text that looks like a link or a token (by its content or by its key name) is
-written as `<withheld>`; numbers, on/off switches, choices, colors and keybinds are written as they are. Plugins
-you did not pick keep today's behavior: which setting changed, never its value.
+Pick the plugin, or plugins, you are reporting on under **Watched plugins**: the recording names them in a
+`watch` line, and their setting changes show as markers on the frames-per-second chart. **Set** keeps named
+groups of them (Save, Del), **Add a plugin** drops down a search box over everything installed (type part of a
+name to narrow it), and each watched plugin is a row with its on/off dot and a cross to stop watching it.
 
 ## Frames per second
 

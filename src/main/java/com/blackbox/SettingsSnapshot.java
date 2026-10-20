@@ -13,17 +13,20 @@ import java.util.regex.Pattern;
 import net.runelite.client.config.ConfigItemDescriptor;
 
 /**
- * The current settings of a watched plugin as one JSON object, with the withholdings that keep a recording
- * safe to share: an item the plugin marks {@code secret} is written as {@code <secret>}, a hidden item is
- * left out, and a free-text value that looks like a link or a token (by content or by key name) is written as
- * {@code <withheld>}. Numbers, booleans, enums, colors and keybinds are always written as the client stores them.
+ * A plugin's current settings as one JSON object, with the withholdings that keep a recording safe to share:
+ * an item the plugin marks {@code secret} is written as {@code <secret>}, a hidden item is left out, and a
+ * free-text value that is a webhook, a key or a token (by its key name or by what it looks like) is written as
+ * {@code <withheld>}. Everything else is written as the client stores it, free text included: highlight lists,
+ * block lists and names typed into a plugin are exactly what a developer needs to see (owner, 2026-10-20).
  */
 final class SettingsSnapshot
 {
 	static final String SECRET = "<secret>";
 	static final String WITHHELD = "<withheld>";
-	/** Key names whose free-text value is never written, whatever it holds. */
-	private static final Pattern RISKY_KEY = Pattern.compile("webhook|url|token|secret|password|passphrase|apikey|api_key|api-key|bearer|auth", Pattern.CASE_INSENSITIVE);
+	/** Key names whose free-text value is never written, whatever it holds: where webhooks, keys and passwords live. */
+	private static final Pattern RISKY_KEY = Pattern.compile("webhook|hook|token|secret|password|passphrase|apikey|api_key|api-key|bearer|auth|credential", Pattern.CASE_INSENSITIVE);
+	/** Links that carry a credential in them: Discord and other webhooks, anything with a token or key in the path. */
+	private static final Pattern RISKY_LINK = Pattern.compile("webhook|hook|token|key=|secret|api/|apikey", Pattern.CASE_INSENSITIVE);
 
 	private SettingsSnapshot()
 	{
@@ -59,7 +62,7 @@ final class SettingsSnapshot
 		return values;
 	}
 
-	/** A free-text value, or {@code <withheld>} when the key or the text looks like a link or a token. */
+	/** A free-text value, or {@code <withheld>} when it is a webhook, a key or a token. Ordinary links and names stay. */
 	static String text(String key, String stored)
 	{
 		if (RISKY_KEY.matcher(key).find())
@@ -67,7 +70,11 @@ final class SettingsSnapshot
 			return WITHHELD;
 		}
 		String lower = stored.toLowerCase(Locale.ROOT);
-		if (lower.contains("://") || lower.startsWith("www.") || looksLikeToken(stored))
+		if (lower.contains("://") && RISKY_LINK.matcher(lower).find())
+		{
+			return WITHHELD;
+		}
+		if (looksLikeToken(stored))
 		{
 			return WITHHELD;
 		}

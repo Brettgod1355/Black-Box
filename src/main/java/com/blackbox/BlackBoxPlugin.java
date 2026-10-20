@@ -154,8 +154,12 @@ public class BlackBoxPlugin extends Plugin
 	@Inject
 	private ConfigManager configManager;
 
-	/** The watched plugins' config groups, for the setting lines; client thread. */
+	/** Every plugin's config group, for the setting lines; client thread. */
+	private final Map<String, Plugin> groups = new HashMap<>();
+	/** The watched plugins' config groups: their setting changes become chart markers; client thread. */
 	private final Map<String, Plugin> watchedGroups = new HashMap<>();
+	/** The client's log, caught inside the client; attached while the plugin runs. */
+	private final ClientLogTap logTap = new ClientLogTap(System.getProperty("user.home"));
 	/** Regions whose collision flags this recording already holds; client thread. */
 	private final Set<Integer> collisionDone = new HashSet<>();
 	/** NPC indexes that are targeting the player right now, so the end of it gets a line too; client thread. */
@@ -207,6 +211,7 @@ public class BlackBoxPlugin extends Plugin
 	protected void startUp()
 	{
 		keyManager.registerKeyListener(markListener);
+		logTap.attach();
 		flushTask = executor.scheduleWithFixedDelay(this::flushQuietly, 1, 1, TimeUnit.SECONDS);
 		watchPanel = new WatchPanel(new Watching());
 		Office office = new Office();
@@ -227,6 +232,7 @@ public class BlackBoxPlugin extends Plugin
 	protected void shutDown()
 	{
 		keyManager.unregisterKeyListener(markListener);
+		logTap.detach();
 		if (navButton != null)
 		{
 			clientToolbar.removeNavigation(navButton);
@@ -293,6 +299,8 @@ public class BlackBoxPlugin extends Plugin
 			pinLine(started, "pause", now);
 		}
 		writeWatch(started, now);
+		Player me = client.getLocalPlayer();
+		logTap.setOwnName(me == null ? null : me.getName());
 		executor.execute(() ->
 		{
 			try
@@ -303,6 +311,8 @@ public class BlackBoxPlugin extends Plugin
 			{
 				log.warn("Black Box cannot create {}", name, e);
 			}
+			// The client's log from here on, and what it logged since the client started, beside the events.
+			logTap.startSending(started::addLogLine);
 			cleanUp(root, name);
 		});
 		log.debug("Black Box recording {}", name);
@@ -330,6 +340,7 @@ public class BlackBoxPlugin extends Plugin
 		end.addProperty("why", why);
 		ending.add(end);
 		session = null;
+		logTap.stopSending();
 		executor.execute(() ->
 		{
 			try
@@ -355,18 +366,22 @@ public class BlackBoxPlugin extends Plugin
 		long now = System.currentTimeMillis();
 		clientThread.invoke(() ->
 		{
-			Plugin watched = watchedGroups.get(group);
-			// Only a watched plugin's value, and only through the same withholding as a snapshot.
-			String value = watched == null ? null : valueFor(watched, key, newValue);
-			live.note(now, "setting", group + "." + key + (value == null ? "" : " = " + value));
+			Plugin plugin = groups.get(group);
+			// Every plugin's value, through the same withholding as a snapshot (secrets, webhooks and tokens never).
+			String value = plugin == null ? null : valueFor(plugin, key, newValue);
+			if (watchedGroups.containsKey(group) || BlackBoxConfig.GROUP.equals(group))
+			{
+				// Chart markers only for the plugins being watched, so the chart is not buried under every toggle.
+				live.note(now, "setting", group + "." + key + (value == null ? "" : " = " + value));
+			}
 			if (session != null)
 			{
 				JsonObject o = session.line("setting", client.getTickCount(), now);
 				o.addProperty("group", group);
 				o.addProperty("key", key);
-				if (watched != null)
+				if (plugin != null)
 				{
-					o.addProperty("plugin", watched.getName());
+					o.addProperty("plugin", plugin.getName());
 					if (value != null)
 					{
 						o.addProperty("value", value);
@@ -1223,6 +1238,15 @@ public class BlackBoxPlugin extends Plugin
 	/** Client thread. */
 	private void rebuildWatchedGroups()
 	{
+		groups.clear();
+		for (Plugin plugin : pluginManager.getPlugins())
+		{
+			ConfigDescriptor descriptor = descriptorOf(plugin);
+			if (descriptor != null)
+			{
+				groups.put(descriptor.getGroup().value(), plugin);
+			}
+		}
 		watchedGroups.clear();
 		for (Plugin plugin : watchedPlugins())
 		{
@@ -1235,8 +1259,9 @@ public class BlackBoxPlugin extends Plugin
 	}
 
 	/**
-	 * A {@code watch} line naming the watched plugins, then a {@code settings} line per watched plugin with
-	 * every current setting (secret ones withheld, see {@link SettingsSnapshot}). Client thread.
+	 * A {@code watch} line naming the watched plugins (the ones the player is reporting on), a {@code plugins} line
+	 * naming every installed plugin with on or off, then a {@code settings} line per plugin that has settings, with
+	 * every current value (secrets, webhooks and tokens withheld, see {@link SettingsSnapshot}). Client thread.
 	 */
 	private void writeWatch(SessionLog target, long now)
 	{
@@ -1252,7 +1277,20 @@ public class BlackBoxPlugin extends Plugin
 		}
 		watch.add("plugins", list);
 		target.add(watch);
-		for (Plugin plugin : plugins)
+		List<Plugin> all = new ArrayList<>(pluginManager.getPlugins());
+		all.sort((a, b) -> String.CASE_INSENSITIVE_ORDER.compare(String.valueOf(a.getName()), String.valueOf(b.getName())));
+		JsonObject installed = target.line("plugins", client.getTickCount(), now);
+		JsonArray names = new JsonArray();
+		for (Plugin plugin : all)
+		{
+			JsonObject one = new JsonObject();
+			one.addProperty("name", plugin.getName());
+			one.addProperty("on", pluginManager.isPluginEnabled(plugin));
+			names.add(one);
+		}
+		installed.add("plugins", names);
+		target.add(installed);
+		for (Plugin plugin : all)
 		{
 			ConfigDescriptor descriptor = descriptorOf(plugin);
 			if (descriptor == null)
@@ -1268,7 +1306,7 @@ public class BlackBoxPlugin extends Plugin
 		}
 	}
 
-	/** A changed setting's value for a watched plugin, withheld like a snapshot would; null when it is hidden or unset. */
+	/** A changed setting's value, withheld like a snapshot would; null when it is hidden or unset. */
 	private String valueFor(Plugin plugin, String key, String newValue)
 	{
 		if (newValue == null)

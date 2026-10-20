@@ -138,8 +138,8 @@ class WatchPanel extends JPanel
 				rows.add(javax.swing.Box.createVerticalStrut(3));
 			}
 			footer.setText(watched.isEmpty()
-				? "Nothing watched. A watched plugin's settings go into the recording; secret ones never."
-				: watched.size() + " watched. Their settings go into the recording at the start and on change; secret ones never.");
+				? "Every plugin's settings are recorded. Watch the plugin you are reporting on: its setting changes show on the chart and the recording names it."
+				: watched.size() + " watched: named in the recording, their setting changes on the chart. Every plugin's settings are recorded anyway.");
 			rows.revalidate();
 			revalidate();
 			repaint();

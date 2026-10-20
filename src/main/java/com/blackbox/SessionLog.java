@@ -13,7 +13,8 @@ import net.runelite.client.util.Filepath;
 
 /**
  * One recording: a folder holding {@code events.jsonl}, one JSON object per line in the order things
- * happened, and a {@code shots} folder for screenshots. Lines are queued on the client thread and written
+ * happened, {@code client-log.txt} with the client's own log lines for the same time, and a {@code shots}
+ * folder for screenshots. Lines are queued on the client thread and written
  * on the plugin's executor, never on the client thread.
  */
 final class SessionLog
@@ -25,7 +26,8 @@ final class SessionLog
 	 * plugins) and {@code settings} (a watched plugin's values, secrets withheld) lines; a {@code setting} line of a
 	 * watched plugin carries {@code plugin} and {@code value}. 5: NPC positions ({@code npcAdd}/{@code npcGone} tiles,
 	 * {@code npcMove}). 6: {@code boatDir}, {@code overlay} and {@code underlay} on {@code tick} lines; {@code collision}
-	 * (a region's flags, once), {@code npcTarget}, {@code npcAnim}, {@code graphic} and {@code note} lines.
+	 * (a region's flags, once), {@code npcTarget}, {@code npcAnim}, {@code graphic} and {@code note} lines; a
+	 * {@code plugins} line and a {@code settings} line for every plugin; {@code client-log.txt} beside the events.
 	 */
 	static final int FORMAT = 6;
 	static final String EVENTS_FILE = "events.jsonl";
@@ -35,6 +37,9 @@ final class SessionLog
 	private final Filepath dir;
 	private final long startedAt;
 	private final ConcurrentLinkedQueue<String> pending = new ConcurrentLinkedQueue<>();
+	/** Lines of the client's log waiting to be written to {@code client-log.txt}; any thread adds. */
+	private final ConcurrentLinkedQueue<String> pendingLog = new ConcurrentLinkedQueue<>();
+	private Writer logOut;
 	/** The events file, open from {@link #open()} to {@link #close()}; executor thread only. */
 	private Writer out;
 	/** Bytes written so far, for the sidebar. */
@@ -82,28 +87,47 @@ final class SessionLog
 		pending.add(line.toString());
 	}
 
+	/** One line of the client's log, as {@link ClientLogTap} caught it. Any thread. */
+	void addLogLine(String line)
+	{
+		pendingLog.add(line);
+	}
+
 	/** Creates the folders and the events file. Executor thread only. */
 	void open() throws IOException
 	{
 		dir.join(SHOTS_DIR).createDirectories();
 		out = dir.join(EVENTS_FILE).openBufferedWriter();
+		logOut = dir.join(ClientLogTap.FILE).openBufferedWriter();
 	}
 
 	/** Writes every queued line. Executor thread only; lines queued before {@link #open()} wait for it. */
 	void flush() throws IOException
 	{
-		if (out == null || pending.isEmpty())
+		if (out == null)
 		{
 			return;
 		}
 		String next;
-		while ((next = pending.poll()) != null)
+		if (!pending.isEmpty())
 		{
-			out.write(next);
-			out.write('\n');
-			bytes += next.length() + 1;
+			while ((next = pending.poll()) != null)
+			{
+				out.write(next);
+				out.write('\n');
+				bytes += next.length() + 1;
+			}
+			out.flush();
 		}
-		out.flush();
+		if (logOut != null && !pendingLog.isEmpty())
+		{
+			while ((next = pendingLog.poll()) != null)
+			{
+				logOut.write(next);
+				logOut.write('\n');
+			}
+			logOut.flush();
+		}
 	}
 
 	/** Writes what is left and closes the file. Executor thread only. */
@@ -114,6 +138,11 @@ final class SessionLog
 			flush();
 			out.close();
 			out = null;
+		}
+		if (logOut != null)
+		{
+			logOut.close();
+			logOut = null;
 		}
 	}
 

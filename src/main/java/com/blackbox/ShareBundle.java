@@ -10,6 +10,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -21,8 +22,9 @@ import java.util.zip.ZipOutputStream;
 import net.runelite.client.util.Filepath;
 
 /**
- * What a player sends a developer: one zip beside the recording holding {@code events.jsonl} and nothing else
- * (never the screenshots), with a short README saying what the file holds and never holds. Optionally only the
+ * What a player sends a developer: one zip beside the recording holding {@code events.jsonl} and
+ * {@code client-log.txt} and nothing else (never the screenshots), with a short README saying what the files
+ * hold and never hold. Optionally only the
  * last minutes, kept whole enough to read: the session line, the last {@code watch} line and the last
  * {@code settings} line per plugin before the cut, then everything after it.
  */
@@ -33,9 +35,12 @@ final class ShareBundle
 		+ "game values, XP, interfaces opening and closing, your clicks, sound effects, frames per second, which plugins\n"
 		+ "were switched and which settings changed, the settings of the plugins you chose to watch (secret ones withheld),\n"
 		+ "and the ground and NPCs around you.\n"
+		+ "the settings of every plugin (webhooks, keys and secrets withheld), and the ground and NPCs around you.\n"
+		+ "client-log.txt holds the client's own log lines for the same time, as RuneLite's client.log would, caught\n"
+		+ "inside the client with your name and home folder replaced.\n"
 		+ "It never holds: other players' names or chat, your bank PIN, your character name (written as <you>), screenshots,\n"
-		+ "the values of settings you did not choose to share, or anything outside the game client.\n"
-		+ "You can open events.jsonl in any text editor and read every line before sending it.\n";
+		+ "webhooks, keys or passwords, or anything outside the game client.\n"
+		+ "You can open both files in any text editor and read every line before sending them.\n";
 
 	private ShareBundle()
 	{
@@ -136,6 +141,21 @@ final class ShareBundle
 				out.write('\n');
 			}
 			out.closeEntry();
+			Filepath clientLog = recording.join(ClientLogTap.FILE);
+			if (clientLog.isFile())
+			{
+				out.putNextEntry(new ZipEntry(ClientLogTap.FILE));
+				try (InputStream in = clientLog.openInputStream())
+				{
+					byte[] buffer = new byte[8192];
+					int n;
+					while ((n = in.read(buffer)) > 0)
+					{
+						out.write(buffer, 0, n);
+					}
+				}
+				out.closeEntry();
+			}
 		}
 		return zip;
 	}

@@ -70,7 +70,7 @@ public class SettingsSnapshotTest
 		assertEquals(SettingsSnapshot.SECRET, values.get("webhook").getAsString());
 		assertFalse(values.has("internal"));
 		assertEquals("hello there", values.get("greeting").getAsString());
-		assertEquals(SettingsSnapshot.WITHHELD, values.get("site").getAsString());
+		assertEquals("https://example.org/page", values.get("site").getAsString());
 		assertEquals("true", values.get("showMapLines").getAsString());
 		assertEquals("50", values.get("radius").getAsString());
 	}
@@ -87,9 +87,12 @@ public class SettingsSnapshotTest
 	public void freeTextRules()
 	{
 		assertEquals("hello there", SettingsSnapshot.text("greeting", "hello there"));
-		assertEquals(SettingsSnapshot.WITHHELD, SettingsSnapshot.text("greeting", "see http://x.y"));
-		assertEquals(SettingsSnapshot.WITHHELD, SettingsSnapshot.text("greeting", "www.example.org"));
-		assertEquals(SettingsSnapshot.WITHHELD, SettingsSnapshot.text("discordUrl", "anything"));
+		assertEquals("see http://x.y", SettingsSnapshot.text("greeting", "see http://x.y"));
+		assertEquals("Cow31337Killer, Salty Pete", SettingsSnapshot.text("highlightedNames", "Cow31337Killer, Salty Pete"));
+		assertEquals(SettingsSnapshot.WITHHELD, SettingsSnapshot.text("note", "https://example.org/api/webhooks/1/a"));
+		assertEquals(SettingsSnapshot.WITHHELD, SettingsSnapshot.text("note", "https://example.org/hooks/x"));
+		assertEquals(SettingsSnapshot.WITHHELD, SettingsSnapshot.text("note", "https://example.org/a?key=abc"));
+		assertEquals(SettingsSnapshot.WITHHELD, SettingsSnapshot.text("discordWebhook", "anything"));
 		assertEquals(SettingsSnapshot.WITHHELD, SettingsSnapshot.text("apiKey", "anything"));
 		assertEquals(SettingsSnapshot.WITHHELD, SettingsSnapshot.text("note", "AB12cd34EF56gh78IJ90kl12MN34op"));
 		assertEquals("Salty Pete", SettingsSnapshot.text("rsn", "Salty Pete"));
