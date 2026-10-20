@@ -742,6 +742,13 @@ public class BlackBoxPlugin extends Plugin
 	@Subscribe
 	public void onNotificationFired(NotificationFired event)
 	{
+		// Not always on the client thread: the Screenshot plugin's "A screenshot was saved" is raised from the thread
+		// that wrote the file, and reading the chat box for the picture there fails (seen 2026-10-20, a death).
+		if (!client.isClientThread())
+		{
+			clientThread.invoke(() -> onNotificationFired(event));
+			return;
+		}
 		if (session == null)
 		{
 			return;
