@@ -39,27 +39,28 @@ miss and refused the wrong fixes before they shipped. The worked example below t
 ## The sidebar
 
 Click the black box icon in the sidebar. Recording starts by itself when you log in; the card at the top shows
-the red dot, since when, the recording's name and its size. Under it: **Clip** saves the last 2, 10 or 30
-minutes, or a number of minutes you type, as one zip to send to a developer; **Export today** saves every
-recording of today as one zip; **Mark** flags this moment and takes a picture; **Open folder** opens the folder
-that holds the recordings and the clips; the text box adds a note in your own words ("the alert did not fire
-here") at this moment. Then frames per second, the list of recordings with Zip, Open and Delete for each, and
-the watched plugins.
+the red dot, since when, the time so far and the size. **Export** saves the last 2, 10 or 30 minutes, a number
+of minutes you choose, or all of today, as one zip to send to a developer; **Open folder** opens the folder that
+holds the recordings and the exports. **Mark**: press it the moment you see the problem, then type what happened
+in the box and press Enter; that flags the spot in the recording, and you export afterwards. Then frames per
+second, the list of recordings with Zip, Open and Delete for each, and **Reporting on**: every plugin's settings
+are recorded anyway; name the plugin the problem is about, so the developer sees it and its setting changes show
+on the chart.
 
-### Sending a clip to a developer
+### Sending an export to a developer
 
-A clip reaches back across recordings, so a bug just before a logout is still in it. It holds `events.jsonl`
+An export reaches back across recordings, so a bug just before a logout is still in it. It holds `events.jsonl`
 (each recording's slice starting with its first lines, so the settings in force are always there),
 `client-log.txt` for the same minutes plus every warning and error since the client started, and a `README.txt` saying what they hold and never hold. Pictures go in
 only if **Pictures in clips** is on. Open any file in a text editor first if you want to read it. Attach the
-zip to the GitHub issue or send it where the developer asked. Clips are written to the `clips` folder and the
+zip to the GitHub issue or send it where the developer asked. Exports are written to the `clips` folder and the
 path is copied to your clipboard.
 
 ### Asking a player for a recording (for developers)
 
 Paste this into the issue: "Install Black Box from the Plugin Hub and open its sidebar (the black box icon).
 It records on its own. Add *<your plugin>* under Watched plugins, make the problem happen, type what you saw in
-the note box and press Enter, then press Clip and pick the last 10 minutes, and attach the zip it names. It
+the note box and press Enter, then press Export and pick the last 10 minutes, and attach the zip it names. It
 holds no chat from other players, no bank PIN and no pictures unless you turn those on; the README inside lists
 exactly what it holds."
 
@@ -101,12 +102,12 @@ never reads the log file; it listens to the client's logging as it happens, keep
 pressed Record, and replaces your name and your home folder in every line. A developer who would have asked for
 `client.log` gets it in the share zip instead.
 
-## Watched plugins
+## Reporting on
 
-Pick the plugin, or plugins, you are reporting on under **Watched plugins**: the recording names them in a
-`watch` line, and their setting changes show as markers on the frames-per-second chart. **Set** keeps named
-groups of them (Save, Del), **Add a plugin** drops down a search box over everything installed (type part of a
-name to narrow it), and each watched plugin is a row with its on/off dot and a cross to stop watching it.
+Every plugin's settings are in every recording. Under **Reporting on**, name the plugin the problem is about:
+the recording says so in a `watch` line, and that plugin's setting changes show as markers on the
+frames-per-second chart. **Add a plugin** drops down a search box over everything installed (type part of a
+name to narrow it), and each named plugin is a row with its on/off dot and a cross to remove it.
 
 ## Frames per second
 

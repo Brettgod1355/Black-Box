@@ -16,21 +16,19 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
-import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
-import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 
 /**
- * The sidebar's "Watched plugins" section (layout A): a Set dropdown with Save and Delete, a searchable picker of
- * the installed plugins, and one row per watched plugin with its on/off dot and a remove cross. What is
- * watched is the plugin's business ({@link Model}); this only shows and edits it.
+ * The sidebar's "Reporting on" section: every plugin's settings are recorded anyway; here the player names the
+ * plugin the problem is about, so the recording says so and that plugin's setting changes show on the chart. A
+ * searchable picker of the installed plugins, and one row per named plugin with its on/off dot and a remove
+ * cross. Named sets live on in the model for the owner's own use; the sidebar no longer shows them.
  */
 class WatchPanel extends JPanel
 {
@@ -56,14 +54,12 @@ class WatchPanel extends JPanel
 		void deleteSet(String name);
 	}
 
-	private static final String NO_SET = "(no set)";
 	private static final String CHOOSE = "Choose…";
 
 	private final Model model;
-	private final JComboBox<String> sets = new JComboBox<>();
 	private final PluginPicker picker = new PluginPicker(this::add);
 	private final JPanel rows = new JPanel();
-	private final javax.swing.JTextArea footer = Wrap.text(" ", null, 3);
+	private final javax.swing.JTextArea footer = Wrap.text(" ", null, 1);
 	private boolean adjusting;
 
 	WatchPanel(Model model)
@@ -73,23 +69,11 @@ class WatchPanel extends JPanel
 		setBackground(ColorScheme.DARK_GRAY_COLOR);
 		setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
 
-		JLabel title = new JLabel("Watched plugins");
+		JLabel title = new JLabel("Reporting on");
 		title.setFont(FontManager.getRunescapeBoldFont());
 		title.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 		add(left(title));
-
-		JPanel setRow = new JPanel(new BorderLayout(4, 0));
-		setRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		setRow.add(dim("Set"), BorderLayout.WEST);
-		sets.setPrototypeDisplayValue("A long set name here");
-		sets.addActionListener(e -> setChosen());
-		setRow.add(sets, BorderLayout.CENTER);
-		JPanel setButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 2, 0));
-		setButtons.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		setButtons.add(small("Save", "Save the watched plugins as a set, under the chosen name or a new one", this::saveSet));
-		setButtons.add(small("Del", "Delete the chosen set; the watched plugins stay", this::deleteSet));
-		setRow.add(setButtons, BorderLayout.EAST);
-		add(fullWidth(setRow));
+		add(fullWidth(Wrap.text("Every plugin's settings are recorded. Name the plugin the problem is about: the developer sees it, and its setting changes show on the chart.", null, 4)));
 
 		JPanel addRow = new JPanel(new BorderLayout(4, 0));
 		addRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -113,13 +97,6 @@ class WatchPanel extends JPanel
 		adjusting = true;
 		try
 		{
-			String chosenSet = (String) sets.getSelectedItem();
-			List<String> setNames = new ArrayList<>();
-			setNames.add(NO_SET);
-			setNames.addAll(model.sets());
-			sets.setModel(new DefaultComboBoxModel<>(setNames.toArray(new String[0])));
-			sets.setSelectedItem(chosenSet != null && setNames.contains(chosenSet) ? chosenSet : NO_SET);
-
 			List<String> watched = model.watched();
 			List<String> free = new ArrayList<>();
 			for (String name : model.installed())
@@ -137,9 +114,7 @@ class WatchPanel extends JPanel
 				rows.add(row(name, model.isOn(name)));
 				rows.add(javax.swing.Box.createVerticalStrut(3));
 			}
-			footer.setText(watched.isEmpty()
-				? "Every plugin's settings are recorded. Watch the plugin you are reporting on: its setting changes show on the chart and the recording names it."
-				: watched.size() + " watched: named in the recording, their setting changes on the chart. Every plugin's settings are recorded anyway.");
+			footer.setText(watched.isEmpty() ? "No plugin named yet." : watched.size() == 1 ? "Named in the recording." : watched.size() + " named in the recording.");
 			rows.revalidate();
 			revalidate();
 			repaint();
@@ -187,53 +162,8 @@ class WatchPanel extends JPanel
 		refresh();
 	}
 
-	private void setChosen()
-	{
-		if (adjusting)
-		{
-			return;
-		}
-		String name = (String) sets.getSelectedItem();
-		if (name == null || NO_SET.equals(name))
-		{
-			return;
-		}
-		model.setWatched(model.loadSet(name));
-		refresh();
-	}
 
-	private void saveSet()
-	{
-		String name = (String) sets.getSelectedItem();
-		if (name == null || NO_SET.equals(name))
-		{
-			name = JOptionPane.showInputDialog(this, "Name for this set of plugins:", "Save set", JOptionPane.PLAIN_MESSAGE);
-			if (name == null)
-			{
-				return;
-			}
-			name = name.trim();
-			if (!WatchList.isValidSetName(name))
-			{
-				JOptionPane.showMessageDialog(this, "A set name is up to 40 characters, without '.' or '|'.", "Save set", JOptionPane.WARNING_MESSAGE);
-				return;
-			}
-		}
-		model.saveSet(name, model.watched());
-		refresh();
-		sets.setSelectedItem(name);
-	}
 
-	private void deleteSet()
-	{
-		String name = (String) sets.getSelectedItem();
-		if (name == null || NO_SET.equals(name))
-		{
-			return;
-		}
-		model.deleteSet(name);
-		refresh();
-	}
 
 	private static JButton small(String text, String tip, Runnable action)
 	{

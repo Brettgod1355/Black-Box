@@ -30,10 +30,10 @@ import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 
 /**
- * The top of the sidebar: the recorder's state (a red dot, since when, the name and size; recording starts at
- * login by itself), then Clip (the last 2, 10 or 30 minutes, or a number of your own), Export today, Mark and
- * Open folder, a box for a note, and a status line that says where a clip went. Built for a player a developer
- * sent here: nothing to start, one obvious button to send.
+ * The top of the sidebar: the recorder's state (a red dot, since when, the time so far and the size; recording
+ * starts at login by itself), Export (the last 2, 10 or 30 minutes, a number of your own, or all of today) and
+ * Open folder, then Mark with a line saying when to press it, a box for what happened, and a status line that
+ * says where an export went. Built for a player a developer sent here: nothing to start, one button to send.
  */
 class RecorderSection extends JPanel
 {
@@ -68,38 +68,33 @@ class RecorderSection extends JPanel
 		card.add(detail, BorderLayout.SOUTH);
 		add(fullWidth(card));
 
-		JPanel actions = new JPanel(new GridLayout(2, 2, 4, 4));
+		JPanel actions = new JPanel(new GridLayout(1, 2, 4, 0));
 		actions.setBackground(ColorScheme.DARK_GRAY_COLOR);
 		actions.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
-		JButton clip = button("Clip…", "Save the last minutes as a zip to send to a developer", null);
-		clip.setFont(FontManager.getRunescapeBoldFont());
-		clip.addActionListener(e -> clipMenu(clip));
-		actions.add(clip);
-		actions.add(button("Export today", "Save every recording of today as one zip", e ->
-		{
-			say("Writing today's export…");
-			desk.exportToday(this::say);
-		}));
-		actions.add(button("Mark", "Mark this moment in the recording, with a picture", e -> desk.mark()));
-		actions.add(button("Open folder", "Open the folder that holds the recordings and clips", e -> desk.openFolder(this::say)));
+		JButton export = button("Export…", "Save the last minutes, or all of today, as a zip to send to a developer", null);
+		export.setFont(FontManager.getRunescapeBoldFont());
+		export.addActionListener(e -> exportMenu(export));
+		actions.add(export);
+		actions.add(button("Open folder", "Open the folder that holds the recordings and exports", e -> desk.openFolder(this::say)));
 		add(fullWidth(actions));
 
-		noteBox.setToolTipText("What happened? Press Enter to add it to the recording as a note at this moment.");
-		noteBox.putClientProperty("JTextField.placeholderText", "What happened? Enter adds a note");
-		noteBox.addActionListener(e ->
+		JPanel markRow = new JPanel(new BorderLayout(0, 3));
+		markRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		markRow.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
+		JButton mark = button("Mark", "Flag this moment in the recording, with a picture", e ->
 		{
-			String text = noteBox.getText().trim();
-			if (!text.isEmpty())
-			{
-				desk.note(text);
-				noteBox.setText("");
-				say("Note added.");
-			}
+			desk.mark();
+			say("Marked. Now type what happened below.");
 		});
+		mark.setFont(FontManager.getRunescapeBoldFont());
+		markRow.add(mark, BorderLayout.NORTH);
+		markRow.add(Wrap.text("Press Mark the moment you see the problem, then type what happened below. That flags the spot in the recording. Export it afterwards.", null, 4), BorderLayout.CENTER);
+		add(fullWidth(markRow));
+
 		JPanel noteRow = new JPanel(new BorderLayout(0, 2));
 		noteRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		noteRow.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
-		JLabel noteCaption = new JLabel("What happened? Enter adds a note.");
+		noteRow.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
+		JLabel noteCaption = new JLabel("What happened? Enter adds it.");
 		noteCaption.setFont(FontManager.getRunescapeSmallFont());
 		noteCaption.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 		noteRow.add(noteCaption, BorderLayout.NORTH);
@@ -156,19 +151,19 @@ class RecorderSection extends JPanel
 		status.revalidate();
 	}
 
-	private void clipMenu(JComponent at)
+	private void exportMenu(JComponent at)
 	{
 		JPopupMenu menu = new JPopupMenu();
 		for (int minutes : new int[]{2, 10, 30})
 		{
-			JMenuItem item = new JMenuItem("Last " + minutes + " minutes");
-			item.addActionListener(e -> clip(minutes));
+			JMenuItem item = new JMenuItem("The last " + minutes + " minutes");
+			item.addActionListener(e -> export(minutes));
 			menu.add(item);
 		}
-		JMenuItem custom = new JMenuItem("Last… (a number of minutes)");
+		JMenuItem custom = new JMenuItem("The last… (choose the minutes)");
 		custom.addActionListener(e ->
 		{
-			String answer = JOptionPane.showInputDialog(this, "Clip the last how many minutes?", "Clip", JOptionPane.PLAIN_MESSAGE);
+			String answer = JOptionPane.showInputDialog(this, "Export the last how many minutes?", "Export", JOptionPane.PLAIN_MESSAGE);
 			if (answer == null)
 			{
 				return;
@@ -178,7 +173,7 @@ class RecorderSection extends JPanel
 				int minutes = Integer.parseInt(answer.trim());
 				if (minutes > 0 && minutes <= 24 * 60)
 				{
-					clip(minutes);
+					export(minutes);
 					return;
 				}
 			}
@@ -189,12 +184,20 @@ class RecorderSection extends JPanel
 			say("Give a number of minutes from 1 to 1440.");
 		});
 		menu.add(custom);
+		menu.addSeparator();
+		JMenuItem today = new JMenuItem("All of today");
+		today.addActionListener(e ->
+		{
+			say("Writing today's export…");
+			desk.exportToday(this::say);
+		});
+		menu.add(today);
 		menu.show(at, 0, at.getHeight());
 	}
 
-	private void clip(int minutes)
+	private void export(int minutes)
 	{
-		say("Writing the clip…");
+		say("Writing the export…");
 		desk.clip(minutes, this::say);
 	}
 
