@@ -30,12 +30,12 @@ public interface BlackBoxConfig extends Config
 		description = "Record the game while you are logged in: game messages, inventory and other item changes, objects and "
 			+ "NPCs appearing, game values, XP, your animation and position, interfaces opening, your clicks and every "
 			+ "plugin's notifications. Other players' names and chat are never recorded. Each login starts a new recording "
-			+ "in the Black Box folder.",
+			+ "in the Black Box folder; nothing leaves it unless you make a clip. Off stops recording.",
 		position = 1
 	)
 	default boolean record()
 	{
-		return false;
+		return true;
 	}
 
 	@ConfigItem(
@@ -65,7 +65,7 @@ public interface BlackBoxConfig extends Config
 	@ConfigItem(
 		keyName = "shotEverySeconds",
 		name = "Every",
-		description = "Take a screenshot this often while recording. 0 turns the timer off.",
+		description = "Take a screenshot this often while recording. 0, the default, leaves pictures to Mark and notifications.",
 		section = SCREENSHOTS,
 		position = 1
 	)
@@ -73,7 +73,7 @@ public interface BlackBoxConfig extends Config
 	@Units(Units.SECONDS)
 	default int shotEverySeconds()
 	{
-		return 5;
+		return 0;
 	}
 
 	@ConfigItem(
@@ -89,11 +89,24 @@ public interface BlackBoxConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "picturesInClips",
+		name = "Pictures in clips",
+		description = "Put the pictures of the clipped minutes into a clip. Off by default: a picture shows whatever was on "
+			+ "screen, other players' names over their heads included (the chat box is blacked out).",
+		section = SCREENSHOTS,
+		position = 3
+	)
+	default boolean picturesInClips()
+	{
+		return false;
+	}
+
+	@ConfigItem(
 		keyName = "hideChat",
 		name = "Hide the chat box",
 		description = "Black out the chat box in every screenshot, so other players' names and messages are never saved.",
 		section = SCREENSHOTS,
-		position = 3
+		position = 4
 	)
 	default boolean hideChat()
 	{
@@ -105,7 +118,7 @@ public interface BlackBoxConfig extends Config
 		name = "Width",
 		description = "Screenshots are shrunk to at most this many pixels across, to keep them small.",
 		section = SCREENSHOTS,
-		position = 4
+		position = 5
 	)
 	@Range(min = 320, max = 3840)
 	@Units(Units.PIXELS)

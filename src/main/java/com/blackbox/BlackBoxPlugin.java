@@ -940,10 +940,9 @@ public class BlackBoxPlugin extends Plugin
 		}
 
 		@Override
-		public void setRecording(boolean on)
+		public boolean isRecordingEnabled()
 		{
-			// The Record setting is the switch; its change event starts or stops the recording as before.
-			configManager.setConfiguration(BlackBoxConfig.GROUP, "record", on);
+			return config.record();
 		}
 
 		@Override
@@ -989,37 +988,95 @@ public class BlackBoxPlugin extends Plugin
 		}
 
 		@Override
-		public void share(String name, int lastMinutes, Report report)
+		public void clip(int lastMinutes, Report report)
+		{
+			long now = System.currentTimeMillis();
+			bundle(report, now - lastMinutes * 60_000L, now, false,
+				Names.FOLDER.format(LocalDateTime.now()) + "-last" + lastMinutes + "min.zip");
+		}
+
+		@Override
+		public void exportToday(Report report)
+		{
+			long now = System.currentTimeMillis();
+			long midnight = LocalDateTime.now().toLocalDate().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+			bundle(report, midnight, now, true, LocalDateTime.now().toLocalDate() + "-today.zip");
+		}
+
+		@Override
+		public void zipRecording(String name, Report report)
 		{
 			executor.execute(() ->
 			{
 				try
 				{
 					Filepath root = getPluginDirectory();
-					String target = name != null ? name : latest(root);
-					if (target == null)
+					SessionLog current = session;
+					long now = System.currentTimeMillis();
+					List<ClipBundle.Source> sources = new ArrayList<>();
+					for (ClipBundle.Source source : ClipBundle.sources(gson, root, current == null ? null : current.getName(), current == null ? 0 : current.getStartedAt(), now))
 					{
-						say(report, "No recording to share yet.");
+						if (source.name.equals(name))
+						{
+							sources.add(source);
+						}
+					}
+					if (sources.isEmpty())
+					{
+						say(report, "Not a recording: " + name);
 						return;
 					}
-					SessionLog current = session;
-					boolean live = current != null && target.equals(current.getName());
-					if (live)
+					if (current != null && name.equals(current.getName()))
 					{
-						current.flush(); // the current recording's lines so far, so the zip is up to date
+						current.flush();
 					}
-					long length = live ? System.currentTimeMillis() - current.getStartedAt() : lengthOf(root.join(target));
-					Filepath zip = ShareBundle.write(gson, root.join(target), target, lastMinutes, length);
-					String where = zip.toString();
-					boolean copied = RecorderSection.copy(where);
-					say(report, "Ready to send: " + where + (copied ? " (path copied to the clipboard)" : ""));
+					Filepath zip = ClipBundle.write(gson, root, sources, 0, config.picturesInClips(), name + ".zip");
+					done(report, zip);
 				}
 				catch (IOException e)
 				{
-					log.warn("Black Box could not write the share zip", e);
-					say(report, "Could not write the share zip: " + e.getMessage());
+					log.warn("Black Box could not write the zip", e);
+					say(report, "Could not write the zip: " + e.getMessage());
 				}
 			});
+		}
+
+		/** Writes the recordings overlapping a window, whole when {@code whole}, else from {@code since}. */
+		private void bundle(Report report, long since, long until, boolean whole, String fileName)
+		{
+			executor.execute(() ->
+			{
+				try
+				{
+					Filepath root = getPluginDirectory();
+					SessionLog current = session;
+					if (current != null)
+					{
+						current.flush(); // so the clip holds the current recording's lines up to now
+					}
+					List<ClipBundle.Source> all = ClipBundle.sources(gson, root, current == null ? null : current.getName(), current == null ? 0 : current.getStartedAt(), until);
+					List<ClipBundle.Source> covering = ClipBundle.covering(all, since, until);
+					if (covering.isEmpty())
+					{
+						say(report, "Nothing recorded in that time.");
+						return;
+					}
+					Filepath zip = ClipBundle.write(gson, root, covering, whole ? 0 : since, config.picturesInClips(), fileName);
+					done(report, zip);
+				}
+				catch (IOException e)
+				{
+					log.warn("Black Box could not write the clip", e);
+					say(report, "Could not write the clip: " + e.getMessage());
+				}
+			});
+		}
+
+		private void done(Report report, Filepath zip)
+		{
+			String where = zip.toString();
+			boolean copied = RecorderSection.copy(where);
+			say(report, "Ready to send: " + where + (copied ? " (path copied to the clipboard)" : ""));
 		}
 
 		@Override
@@ -1058,60 +1115,10 @@ public class BlackBoxPlugin extends Plugin
 			});
 		}
 
-		/** The newest recording folder's name, the current one included, or null. Executor thread. */
-		private String latest(Filepath root) throws IOException
-		{
-			List<String> names = new ArrayList<>();
-			try (Stream<Filepath> dirs = root.walk(1))
-			{
-				for (Filepath dir : dirs.filter(p -> !p.equals(root) && p.isDirectory()).collect(Collectors.toList()))
-				{
-					if (Names.parse(dir.getFileName()) != null)
-					{
-						names.add(dir.getFileName());
-					}
-				}
-			}
-			names.sort(Collections.reverseOrder());
-			return names.isEmpty() ? null : names.get(0);
-		}
-
 		private void say(Report report, String text)
 		{
 			SwingUtilities.invokeLater(() -> report.say(text));
 		}
-	}
-
-	/** A finished recording's length from its last line's {@code ms}, or 0. Executor thread. */
-	private static long lengthOf(Filepath dir)
-	{
-		long last = 0;
-		try (BufferedReader in = dir.join(SessionLog.EVENTS_FILE).openBufferedReader())
-		{
-			String text;
-			while ((text = in.readLine()) != null)
-			{
-				int i = text.indexOf("\"ms\":");
-				if (i < 0)
-				{
-					continue;
-				}
-				int start = i + 5, end = start;
-				while (end < text.length() && Character.isDigit(text.charAt(end)))
-				{
-					end++;
-				}
-				if (end > start)
-				{
-					last = Long.parseLong(text.substring(start, end));
-				}
-			}
-		}
-		catch (IOException | NumberFormatException e)
-		{
-			log.debug("Black Box could not read the length of {}", dir, e);
-		}
-		return last;
 	}
 
 	// ---- Watched plugins ----

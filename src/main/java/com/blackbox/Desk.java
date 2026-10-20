@@ -7,7 +7,7 @@ package com.blackbox;
 
 import java.util.List;
 
-/** What the sidebar's recorder controls and recordings list read and do. Called on the Swing thread; results may arrive later. */
+/** What the sidebar's recorder card and recordings list read and do. Called on the Swing thread; results may arrive later. */
 interface Desk
 {
 	/** One past or current recording. */
@@ -33,6 +33,9 @@ interface Desk
 
 	boolean isRecording();
 
+	/** Whether the Record setting is on: recording starts at login by itself. */
+	boolean isRecordingEnabled();
+
 	/** The current recording's folder name, or null. */
 	String currentName();
 
@@ -42,8 +45,6 @@ interface Desk
 	/** Bytes written so far to the current recording, or 0. */
 	long bytesSoFar();
 
-	void setRecording(boolean on);
-
 	void mark();
 
 	void note(String text);
@@ -51,8 +52,14 @@ interface Desk
 	/** Lists recordings on a worker and hands them back on the Swing thread, newest first. */
 	void recordings(java.util.function.Consumer<List<Entry>> then);
 
-	/** Writes the share zip of a recording (0 = all of it) and reports where it went; copies the path to the clipboard. */
-	void share(String name, int lastMinutes, Report report);
+	/** Writes a clip of the last minutes (across recordings) into the clips folder, copies its path, reports. */
+	void clip(int lastMinutes, Report report);
+
+	/** Writes every recording of today into one zip. */
+	void exportToday(Report report);
+
+	/** Writes one whole recording into a zip. */
+	void zipRecording(String name, Report report);
 
 	void openFolder(Report report);
 

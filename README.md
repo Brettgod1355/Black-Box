@@ -38,35 +38,41 @@ miss and refused the wrong fixes before they shipped. The worked example below t
 
 ## The sidebar
 
-Click the black box icon in the sidebar. At the top is the recorder: **Record** starts a recording and the card
-shows the red dot, the elapsed time, the recording's name and its size; **Stop** ends it. Under it, **Mark**
-flags this moment, **Share** writes a zip to send to a developer (all of the recording, or the last 10 or 30
-minutes) and copies its path, **Open folder** opens the recordings folder, and the text box adds a note in your
-own words ("the alert did not fire here") at this moment. Then frames per second, the list of recordings with
-Share, Open and Delete for each, and the watched plugins.
+Click the black box icon in the sidebar. Recording starts by itself when you log in; the card at the top shows
+the red dot, since when, the recording's name and its size. Under it: **Clip** saves the last 2, 10 or 30
+minutes, or a number of minutes you type, as one zip to send to a developer; **Export today** saves every
+recording of today as one zip; **Mark** flags this moment and takes a picture; **Open folder** opens the folder
+that holds the recordings and the clips; the text box adds a note in your own words ("the alert did not fire
+here") at this moment. Then frames per second, the list of recordings with Zip, Open and Delete for each, and
+the watched plugins.
 
-### Sending a recording to a developer
+### Sending a clip to a developer
 
-A share zip holds `events.jsonl`, `client-log.txt` and a `README.txt` saying what they hold and never hold. It
-never holds screenshots. Open the events file in any text editor first if you want to read it. Attach the zip to the GitHub
-issue or send it where the developer asked.
+A clip reaches back across recordings, so a bug just before a logout is still in it. It holds `events.jsonl`
+(each recording's slice starting with its first lines, so the settings in force are always there),
+`client-log.txt` for the same minutes, and a `README.txt` saying what they hold and never hold. Pictures go in
+only if **Pictures in clips** is on. Open any file in a text editor first if you want to read it. Attach the
+zip to the GitHub issue or send it where the developer asked. Clips are written to the `clips` folder and the
+path is copied to your clipboard.
 
 ### Asking a player for a recording (for developers)
 
-Paste this into the issue: "Install Black Box from the Plugin Hub, open its sidebar (the black box icon), add
-*<your plugin>* under Watched plugins, press Record, make the problem happen, type what you saw in the note box
-and press Enter, then press Share and attach the zip it names. It holds no chat from other players, no bank PIN
-and no screenshots; the README inside lists exactly what it holds."
+Paste this into the issue: "Install Black Box from the Plugin Hub and open its sidebar (the black box icon).
+It records on its own. Add *<your plugin>* under Watched plugins, make the problem happen, type what you saw in
+the note box and press Enter, then press Clip and pick the last 10 minutes, and attach the zip it names. It
+holds no chat from other players, no bank PIN and no pictures unless you turn those on; the README inside lists
+exactly what it holds."
 
 ## Using it
 
 1. Start a developer client with Black Box loaded: `./gradlew run` in this repository starts a client with
    only Black Box. Never add Black Box to another plugin's launcher or build: that plugin would then need
    Black Box to build at all.
-2. In Black Box's settings, turn on **Record**. A new recording starts each time you log in, in
-   `.runelite/plugin-data/black-box/<date and time>/`.
-3. Play as you normally would. Set a **Mark hotkey** to flag a moment worth a look later.
-4. Turn **Record** off, or log out, to finish.
+2. A new recording starts each time you log in, in `.runelite/plugin-data/black-box/<date and time>/`; turn
+   **Record** off in the settings to stop that.
+3. Play as you normally would. Set a **Mark hotkey**, or press Mark in the sidebar, to flag a moment worth a look
+   later.
+4. Log out to finish, or press Clip at any time for the last minutes.
 
 ## The world around you
 
@@ -118,11 +124,12 @@ In a recording, every `tick` line carries `fps`, and `plugin` and `setting` line
 
 | Setting | Default | What it does |
 |---|---|---|
-| Record | off | Records while you are logged in. |
+| Record | on | Records while you are logged in. |
 | Mark hotkey | none | Marks the moment, and takes a screenshot if screenshots are on. |
 | Sound effects | on | Records the id of each sound effect the game plays, while the game's sound effects are on. |
-| Screenshots: Every | 5 seconds | A screenshot this often; 0 turns the timer off. |
+| Screenshots: Every | 0 (off) | A screenshot this often; 0 leaves pictures to Mark and notifications. |
 | Screenshots: On notifications | on | A screenshot whenever any plugin sends a notification. |
+| Screenshots: Pictures in clips | off | Put the clipped minutes' pictures into a clip. |
 | Screenshots: Hide the chat box | on | Blacks out the chat box in every screenshot. |
 | Screenshots: Width | 960 pixels | Screenshots are shrunk to at most this width. |
 | Cleanup: Keep for (days) | 7 | Recordings older than this are deleted. |

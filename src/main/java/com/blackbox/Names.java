@@ -53,6 +53,12 @@ final class Names
 		return at.format(DAY);
 	}
 
+	/** "18:02" for a wall-clock moment in milliseconds. */
+	static String clock(long epochMillis)
+	{
+		return java.time.Instant.ofEpochMilli(epochMillis).atZone(java.time.ZoneId.systemDefault()).format(TIME);
+	}
+
 	/** "1.8 MB", "412 KB", "900 B". */
 	static String size(long bytes)
 	{

@@ -23,15 +23,17 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 import javax.swing.Timer;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 
 /**
- * The top of the sidebar: whether a recording is running (a red dot, the elapsed time, the name and size), the
- * Record or Stop button, then Mark, Share and Open folder, a box for a note, and a status line that says where a
- * share zip went. Built for a player a developer sent here: one obvious button, one obvious way to send the file.
+ * The top of the sidebar: the recorder's state (a red dot, since when, the name and size; recording starts at
+ * login by itself), then Clip (the last 2, 10 or 30 minutes, or a number of your own), Export today, Mark and
+ * Open folder, a box for a note, and a status line that says where a clip went. Built for a player a developer
+ * sent here: nothing to start, one obvious button to send.
  */
 class RecorderSection extends JPanel
 {
@@ -41,7 +43,6 @@ class RecorderSection extends JPanel
 	private final Dot dot = new Dot();
 	private final JLabel title = new JLabel("Not recording");
 	private final JLabel detail = new JLabel(" ");
-	private final JButton record = new JButton("Record");
 	private final JTextField noteBox = new JTextField();
 	private final javax.swing.JTextArea status = Wrap.text(" ", null, 4);
 	private final Timer timer;
@@ -61,24 +62,26 @@ class RecorderSection extends JPanel
 		title.setFont(FontManager.getRunescapeBoldFont());
 		title.setForeground(Color.WHITE);
 		top.add(title, BorderLayout.CENTER);
-		record.setFocusPainted(false);
-		record.setFont(FontManager.getRunescapeBoldFont());
-		record.addActionListener(e -> desk.setRecording(!desk.isRecording()));
-		top.add(record, BorderLayout.EAST);
 		card.add(top, BorderLayout.NORTH);
 		detail.setFont(FontManager.getRunescapeSmallFont());
 		detail.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 		card.add(detail, BorderLayout.SOUTH);
 		add(fullWidth(card));
 
-		JPanel actions = new JPanel(new GridLayout(1, 3, 4, 0));
+		JPanel actions = new JPanel(new GridLayout(2, 2, 4, 4));
 		actions.setBackground(ColorScheme.DARK_GRAY_COLOR);
 		actions.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
-		actions.add(button("Mark", "Mark this moment in the recording", e -> desk.mark()));
-		JButton share = button("Share…", "Write a zip of the recording to send to a developer: the events file only, never screenshots", null);
-		share.addActionListener(e -> shareMenu(share));
-		actions.add(share);
-		actions.add(button("Open folder", "Open the folder that holds the recordings", e -> desk.openFolder(this::say)));
+		JButton clip = button("Clip…", "Save the last minutes as a zip to send to a developer", null);
+		clip.setFont(FontManager.getRunescapeBoldFont());
+		clip.addActionListener(e -> clipMenu(clip));
+		actions.add(clip);
+		actions.add(button("Export today", "Save every recording of today as one zip", e ->
+		{
+			say("Writing today's export…");
+			desk.exportToday(this::say);
+		}));
+		actions.add(button("Mark", "Mark this moment in the recording, with a picture", e -> desk.mark()));
+		actions.add(button("Open folder", "Open the folder that holds the recordings and clips", e -> desk.openFolder(this::say)));
 		add(fullWidth(actions));
 
 		noteBox.setToolTipText("What happened? Press Enter to add it to the recording as a note at this moment.");
@@ -130,17 +133,20 @@ class RecorderSection extends JPanel
 	{
 		boolean on = desk.isRecording();
 		dot.setOn(on);
-		record.setText(on ? "Stop" : "Record");
 		if (on)
 		{
-			title.setText("Recording " + Names.elapsed(System.currentTimeMillis() - desk.startedAt()));
-			String name = desk.currentName();
-			detail.setText((name == null ? "" : name + "   ") + Names.size(desk.bytesSoFar()));
+			title.setText("Recording since " + Names.clock(desk.startedAt()));
+			detail.setText(Names.elapsed(System.currentTimeMillis() - desk.startedAt()) + " so far,  " + Names.size(desk.bytesSoFar()));
+		}
+		else if (desk.isRecordingEnabled())
+		{
+			title.setText("Not recording");
+			detail.setText("Recording starts when you log in.");
 		}
 		else
 		{
-			title.setText("Not recording");
-			detail.setText("Press Record, play, then Share.");
+			title.setText("Recording is off");
+			detail.setText("Turn Record on in Black Box's settings.");
 		}
 	}
 
@@ -150,30 +156,46 @@ class RecorderSection extends JPanel
 		status.revalidate();
 	}
 
-	private void shareMenu(JComponent at)
+	private void clipMenu(JComponent at)
 	{
-		String name = desk.currentName();
 		JPopupMenu menu = new JPopupMenu();
-		String what = name == null ? "the latest recording" : "this recording";
-		JMenuItem all = new JMenuItem("Share " + what + " (all of it)");
-		all.addActionListener(e -> share(name, 0));
-		menu.add(all);
-		JMenuItem ten = new JMenuItem("Share the last 10 minutes");
-		ten.addActionListener(e -> share(name, 10));
-		menu.add(ten);
-		JMenuItem thirty = new JMenuItem("Share the last 30 minutes");
-		thirty.addActionListener(e -> share(name, 30));
-		menu.add(thirty);
+		for (int minutes : new int[]{2, 10, 30})
+		{
+			JMenuItem item = new JMenuItem("Last " + minutes + " minutes");
+			item.addActionListener(e -> clip(minutes));
+			menu.add(item);
+		}
+		JMenuItem custom = new JMenuItem("Last… (a number of minutes)");
+		custom.addActionListener(e ->
+		{
+			String answer = JOptionPane.showInputDialog(this, "Clip the last how many minutes?", "Clip", JOptionPane.PLAIN_MESSAGE);
+			if (answer == null)
+			{
+				return;
+			}
+			try
+			{
+				int minutes = Integer.parseInt(answer.trim());
+				if (minutes > 0 && minutes <= 24 * 60)
+				{
+					clip(minutes);
+					return;
+				}
+			}
+			catch (NumberFormatException ignored)
+			{
+				// fall through
+			}
+			say("Give a number of minutes from 1 to 1440.");
+		});
+		menu.add(custom);
 		menu.show(at, 0, at.getHeight());
 	}
 
-	private void share(String name, int lastMinutes)
+	private void clip(int minutes)
 	{
-		say("Writing the share zip…");
-		desk.share(name, lastMinutes, text ->
-		{
-			say(text);
-		});
+		say("Writing the clip…");
+		desk.clip(minutes, this::say);
 	}
 
 	/** Puts text on the system clipboard; any failure is reported, not thrown. */

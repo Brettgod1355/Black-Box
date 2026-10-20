@@ -20,7 +20,7 @@ import javax.swing.JPanel;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 
-/** The sidebar's list of recordings: when, how big, and Share, Open and Delete for each. */
+/** The sidebar's list of recordings: when, how big, and Zip, Open and Delete for each. */
 class RecordingsSection extends JPanel
 {
 	private static final int SHOWN = 8;
@@ -105,7 +105,11 @@ class RecordingsSection extends JPanel
 		row.add(top, BorderLayout.NORTH);
 		JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 0));
 		buttons.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		buttons.add(RecorderSection.button("Share", "Write a zip of this recording to send", e -> desk.share(entry.name, 0, recorder::say)));
+		buttons.add(RecorderSection.button("Zip", "Write a zip of this whole recording into the clips folder", e ->
+		{
+			recorder.say("Writing the zip…");
+			desk.zipRecording(entry.name, recorder::say);
+		}));
 		buttons.add(RecorderSection.button("Open", "Open the recording's folder", e -> desk.openFolder(recorder::say)));
 		if (!entry.current)
 		{
