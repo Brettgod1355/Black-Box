@@ -938,11 +938,46 @@ public class BlackBoxPlugin extends Plugin
 			return current == null ? 0 : current.getStartedAt();
 		}
 
+		/** The current recording's whole folder (events, client log, pictures), measured off the client thread. */
+		private volatile long folderBytes;
+		private volatile long folderMeasuredAt;
+		private volatile SessionLog folderOf;
+
 		@Override
 		public long bytesSoFar()
 		{
 			SessionLog current = session;
-			return current == null ? 0 : current.getBytes();
+			if (current == null)
+			{
+				return 0;
+			}
+			long now = System.currentTimeMillis();
+			if (folderOf != current || now - folderMeasuredAt >= 5000)
+			{
+				if (folderOf != current)
+				{
+					folderOf = current;
+					folderBytes = 0;
+				}
+				folderMeasuredAt = now;
+				executor.execute(() ->
+				{
+					try
+					{
+						long bytes = measure(current.getDir()).bytes;
+						if (folderOf == current)
+						{
+							folderBytes = bytes;
+						}
+					}
+					catch (IOException e)
+					{
+						log.debug("Black Box could not measure {}", current.getDir(), e);
+					}
+				});
+			}
+			// Same total as the recordings list; the events written since the last measure may lead it briefly.
+			return Math.max(folderBytes, current.getBytes());
 		}
 
 		@Override

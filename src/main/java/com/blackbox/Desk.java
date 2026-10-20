@@ -42,7 +42,7 @@ interface Desk
 	/** When the current recording began (wall clock), or 0. */
 	long startedAt();
 
-	/** Bytes written so far to the current recording, or 0. */
+	/** The current recording's size so far (its whole folder, as the recordings list shows it), or 0. */
 	long bytesSoFar();
 
 	/**

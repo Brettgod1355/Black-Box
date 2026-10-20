@@ -43,7 +43,14 @@ class RecorderSection extends JPanel
 	private final Dot dot = new Dot();
 	private final JLabel title = new JLabel("Not recording");
 	private final JLabel detail = new JLabel(" ");
-	private final JPanel markCards = new JPanel(new java.awt.CardLayout());
+	private final JPanel markCards = new JPanel(new ShownCardLayout())
+	{
+		@Override
+		public Dimension getMaximumSize()
+		{
+			return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+		}
+	};
 	private final JLabel flagTitle = new JLabel("Spot flagged");
 	private final javax.swing.JTextArea flagText = new javax.swing.JTextArea();
 	private final javax.swing.JTextArea status = Wrap.text(" ", null, 4);
@@ -117,7 +124,8 @@ class RecorderSection extends JPanel
 		flagButtons.add(button("Cancel", "Drop it; nothing is written", e -> cancelMark()));
 		flagForm.add(flagButtons, BorderLayout.SOUTH);
 		markCards.add(flagForm, "flag");
-		add(fullWidth(markCards));
+		markCards.setAlignmentX(LEFT_ALIGNMENT);
+		add(markCards);
 
 		JPanel statusRow = new JPanel(new BorderLayout());
 		statusRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -175,7 +183,7 @@ class RecorderSection extends JPanel
 		{
 			flagTitle.setText("Spot flagged at " + when);
 			flagText.setText("");
-			((java.awt.CardLayout) markCards.getLayout()).show(markCards, "flag");
+			showCard("flag");
 			flagText.requestFocusInWindow();
 			say(" ");
 		});
@@ -184,14 +192,14 @@ class RecorderSection extends JPanel
 	private void saveMark()
 	{
 		desk.saveMark(flagText.getText().trim());
-		((java.awt.CardLayout) markCards.getLayout()).show(markCards, "mark");
+		showCard("mark");
 		say("Flag saved into the recording. Export when you are ready.");
 	}
 
 	private void cancelMark()
 	{
 		desk.cancelMark();
-		((java.awt.CardLayout) markCards.getLayout()).show(markCards, "mark");
+		showCard("mark");
 		say("Flag dropped; nothing was written.");
 	}
 
@@ -200,7 +208,7 @@ class RecorderSection extends JPanel
 	{
 		flagTitle.setText("Spot flagged at " + when);
 		flagText.setText(typed);
-		((java.awt.CardLayout) markCards.getLayout()).show(markCards, "flag");
+		showCard("flag");
 	}
 
 	private void exportMenu(JComponent at)
@@ -278,6 +286,47 @@ class RecorderSection extends JPanel
 			button.addActionListener(action);
 		}
 		return button;
+	}
+
+	/** Shows the Mark button or the flag form, and lets the sidebar take back or give the room it needs. */
+	private void showCard(String name)
+	{
+		((ShownCardLayout) markCards.getLayout()).show(markCards, name);
+		markCards.revalidate();
+		markCards.repaint();
+	}
+
+	/**
+	 * A card layout as tall as the card on screen. Swing's own takes the tallest card, so the space for the flag
+	 * form stayed empty under the Mark button.
+	 */
+	static final class ShownCardLayout extends java.awt.CardLayout
+	{
+		@Override
+		public Dimension preferredLayoutSize(java.awt.Container parent)
+		{
+			return shown(parent, true);
+		}
+
+		@Override
+		public Dimension minimumLayoutSize(java.awt.Container parent)
+		{
+			return shown(parent, false);
+		}
+
+		private static Dimension shown(java.awt.Container parent, boolean preferred)
+		{
+			java.awt.Insets in = parent.getInsets();
+			for (java.awt.Component c : parent.getComponents())
+			{
+				if (c.isVisible())
+				{
+					Dimension d = preferred ? c.getPreferredSize() : c.getMinimumSize();
+					return new Dimension(d.width + in.left + in.right, d.height + in.top + in.bottom);
+				}
+			}
+			return new Dimension(in.left + in.right, in.top + in.bottom);
+		}
 	}
 
 	static JComponent fullWidth(JComponent c)
