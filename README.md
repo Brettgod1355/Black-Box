@@ -146,6 +146,19 @@ pressed Record, and replaces your name, your home folder and account names other
 Discord user RuneLite connects to) in every line. A developer who would have asked for
 `client.log` gets it in the share zip instead.
 
+## When two plugins fight over a crewmate's line
+
+Some bugs are two plugins changing the same thing, and a plugin list only says who might have done it. A plugin
+that blanks a crewmate's overhead text writes the game's field without any event, so the change cannot be caught,
+only seen, and never traced to the plugin that made it (reading the call stack would be reflection, which the Plugin
+Hub forbids). So Black Box handles the game's overhead text event after every other plugin and writes `shown` on
+the `npcSay` line when what the NPC shows by then is not what the game set; a client tick later, once the game tick
+and the other plugins' tick handlers have run, an `npcShown` line records what the NPC really shows whenever that
+changed again. A mute that works for one player and not the next then reads as: the line blanked in the event, then
+written back a tick later, and the `plugins` line says which plugin only the affected player has on. Nothing here
+reads anything but the client's own objects.
+
+
 ## Reporting on
 
 Every plugin's settings are in every recording. Under **Reporting on**, name the plugin the problem is about:
@@ -200,7 +213,8 @@ per line, in the order things happened. Every line has `e` (what happened), `tic
 | `session` | `format`, `blackBox`, `runelite`, `world`, `started` |
 | `tick` | `wv` (the world view you stand in), `x`, `y`, `plane`, `anim`; aboard a boat also `topX`/`topY`/`topPlane` (you in the main world), `boatX`/`boatY`/`boatPlane`, `boatConfig`, `boatOwner` |
 | `chat` | `type`, `text` |
-| `npcSay` | `npc`, `index`, `name`, `text`, `wv` |
+| `npcSay` | `npc`, `index`, `name`, `text`, `wv`; from format 7 also `shown`, what the NPC showed once every other plugin had handled the event, when that is not `text` |
+| `npcShown` | from format 7: `npc`, `index`, `name`, `text`, `cycle`, `wv`, what the NPC really shows a client tick later, after the game tick and the other plugins' tick handlers, when it is not what the last `npcSay` left |
 | `items` | `container`, `items` as `[id, quantity]` pairs, one per slot |
 | `objectAdd`, `objectGone` | `id`, `hash`, `wv`, `x`, `y`, `plane` |
 | `npcAdd`, `npcGone` | `npc`, `index`, `name`, `wv`; from format 5 also `x`, `y`, `plane`, the NPC's tile in the main world (under the boat for an NPC aboard one), left out while the bank PIN keypad shows |

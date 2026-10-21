@@ -9,7 +9,7 @@ Every line in `events.jsonl` has three fields: `e`, the kind of line; `tick`, th
 (the client counts about 1.67 a second; a login resets nothing, the count keeps rising); and `ms`, milliseconds
 since the recording began. A tool reads lines by `e` and ignores kinds it does not know.
 
-The first line's `format` says which version of this document the file follows. This is format **6**.
+The first line's `format` says which version of this document the file follows. This is format **7**.
 
 Privacy holds on every line: other players never appear, the player's own name is written as `<you>`, nothing
 is written while the bank PIN keypad shows except the `pause` and `resume` lines that bracket it.
@@ -89,7 +89,21 @@ A game message to the player: `type` (RuneLite's chat type; only game messages, 
 `text`. Hazard warnings, skill messages and plugin chat lines are here.
 
 ### `npcSay`
-An NPC's overhead text: `npc` (the NPC's id), `index` (its slot in the scene), `name`, `text`, `wv`.
+An NPC's overhead text as the game set it: `npc` (the NPC's id), `index` (its slot in the scene), `name`, `text`,
+`wv`. From format 7, `shown`: what the NPC showed once every other plugin had handled this same event, written only
+when it is not `text` (a plugin blanked or rewrote the line inside its handler; a plugin's own write fires no event,
+so it can only be seen). A blanked text is `""` or `null`. Black Box handles this event after every other plugin.
+The game writes the line's display count after the event, so a plugin's `setOverheadCycle` inside its handler is
+overwritten; only its text survives.
+
+### `npcShown`
+From format 7. One client tick after an `npcSay`, once the game tick, the queued client-thread calls and every
+plugin's tick handler that follow the event have run (Black Box's own runs last), the text the NPC really shows,
+written only when it is not what that `npcSay` left (`shown`, or `text` when there was no `shown`): a plugin changed
+it after the event. `npc`, `index`, `name`, `text`, `cycle` (client ticks until the game blanks the text: a new
+line gets 100 and counts down one a client tick until the game clears it at 0; 0 or less stops the count, so the
+text then stays until something writes it again, which is how a muter keeps its blank), `wv`. No `npcShown` line
+means the NPC still showed what its last `npcSay` says a client tick later; a change after that is not recorded.
 
 ### `items`
 An item container changed: `container` (the inventory id; 93 is the inventory, 95 the bank, see `names.txt`),
@@ -165,3 +179,4 @@ inventory id the exported events mention, with RuneLite's constant name; `?` whe
 `setting`. 5. NPC positions: tiles on `npcAdd`/`npcGone`, `npcMove`. 6. `boatDir`, `overlay`, `underlay` on
 `tick`; `collision`, `npcTarget`, `npcAnim`, `graphic`, `note`; `plugins`; every plugin's `settings`;
 `startedAt` and the environment on `session`; `version` on plugin lists; `text` on `mark`; `client-log.txt`.
+7. `shown` on `npcSay`; `npcShown`.

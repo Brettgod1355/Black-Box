@@ -47,6 +47,10 @@ Compare what the game sent (`chat`, `var`, `npcAdd`, `items`) with what your plu
 If your plugin has a replay test (see the README), run the recording through it: the test shows what your
 logic decided on every tick of that session, and a fix can be checked against the same file.
 
+From format 7, an `npcSay` line's `shown` is what the NPC showed once every other plugin had handled the line, and
+an `npcShown` line what it showed a client tick later when that changed again: a crewmate's line blanked by one
+plugin and written back by another reads as those two, and the `plugins` line says which plugins could have.
+
 ## Handing it to an AI assistant
 
 Give the assistant the export's files and say:

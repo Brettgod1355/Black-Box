@@ -52,6 +52,7 @@ import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.AnimationChanged;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.GameObjectDespawned;
 import net.runelite.api.events.GameObjectSpawned;
 import net.runelite.api.events.GameStateChanged;
@@ -190,6 +191,19 @@ public class BlackBoxPlugin extends Plugin
 	 * Read by the frame listener, which may not run on the client thread.
 	 */
 	private volatile boolean pinPause;
+	/**
+	 * After every other subscriber: RuneLite calls higher priorities first, and this is far below any a plugin
+	 * uses, so by the time the overhead text handler runs the other plugins have had their turn at the same event.
+	 */
+	static final float LAST = -1000f;
+	/**
+	 * NPCs whose overhead text changed this client cycle, by scene index, with the text the other subscribers
+	 * left on them. The cycle's own ClientTick comes a moment after the event (both inside the same client
+	 * cycle), so each entry is held over to the next one, by which time the game tick, the queued client-thread
+	 * calls and every plugin's tick handler that follow the event have run. Client thread only.
+	 */
+	private final Map<Integer, Said> saidThisTick = new HashMap<>();
+	private final Map<Integer, Said> saidLastTick = new HashMap<>();
 	private long shotRequestedAt;
 	/** A frame that never arrives (a minimized window) must not block screenshots for good. */
 	private static final long SHOT_GIVE_UP_MILLIS = 5_000;
@@ -442,6 +456,12 @@ public class BlackBoxPlugin extends Plugin
 			o.addProperty("state", state.name());
 			session.add(o);
 		}
+		if (state == GameState.LOGIN_SCREEN || state == GameState.HOPPING)
+		{
+			// The NPCs held for an npcShown check are gone with the scene.
+			saidThisTick.clear();
+			saidLastTick.clear();
+		}
 		if (state == GameState.LOGGED_IN)
 		{
 			startIfWanted();
@@ -526,7 +546,7 @@ public class BlackBoxPlugin extends Plugin
 		session.add(o);
 	}
 
-	@Subscribe
+	@Subscribe(priority = LAST)
 	public void onOverheadTextChanged(OverheadTextChanged event)
 	{
 		Actor actor = event.getActor();
@@ -542,7 +562,70 @@ public class BlackBoxPlugin extends Plugin
 		o.addProperty("name", scrub(npc.getName()));
 		o.addProperty("text", scrub(event.getOverheadText()));
 		worldView(o, npc.getWorldView());
+		// The game set the text and posted this event; every other subscriber has run by now (LAST). What the NPC
+		// shows at this point is what they left: a plugin's setOverheadText fires no event of its own (a bare field
+		// write in the injected client, checked 2026-10-21), so a blanked or rewritten line can only be seen, not
+		// caught, and never traced to its plugin (the Hub forbids reflection, a stack walk included; format 7).
+		String shown = npc.getOverheadText();
+		if (!plain(shown).equals(plain(event.getOverheadText())))
+		{
+			o.addProperty("shown", scrub(shown));
+		}
 		session.add(o);
+		// A new line from the game replaces whatever was held for this slot: it is not a plugin's write.
+		saidLastTick.remove(npc.getIndex());
+		saidThisTick.put(npc.getIndex(), new Said(npc, shown));
+	}
+
+	@Subscribe(priority = LAST)
+	public void onClientTick(ClientTick event)
+	{
+		if (saidThisTick.isEmpty() && saidLastTick.isEmpty())
+		{
+			return;
+		}
+		if (session != null)
+		{
+			for (Said said : saidLastTick.values())
+			{
+				// A plugin that changed the text after the event, on the game tick, a queued call or its own tick
+				// handler (LAST puts this after those), leaves it here: record what the NPC shows now when it is not
+				// what the last npcSay said was shown.
+				String shown = said.npc.getOverheadText();
+				if (!plain(shown).equals(plain(said.text)))
+				{
+					JsonObject o = line("npcShown");
+					o.addProperty("npc", said.npc.getId());
+					o.addProperty("index", said.npc.getIndex());
+					o.addProperty("name", scrub(said.npc.getName()));
+					o.addProperty("text", scrub(shown));
+					o.addProperty("cycle", said.npc.getOverheadCycle());
+					worldView(o, said.npc.getWorldView());
+					session.add(o);
+				}
+			}
+		}
+		saidLastTick.clear();
+		saidLastTick.putAll(saidThisTick);
+		saidThisTick.clear();
+	}
+
+	/** An NPC whose overhead text changed this tick, and the text the other subscribers left shown. */
+	private static final class Said
+	{
+		private final NPC npc;
+		private final String text;
+
+		private Said(NPC npc, String text)
+		{
+			this.npc = npc;
+			this.text = text;
+		}
+	}
+
+	private static String plain(String text)
+	{
+		return text == null ? "" : text;
 	}
 
 	@Subscribe

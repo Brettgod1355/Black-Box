@@ -41,6 +41,9 @@ public class HubRulesTest
 		{"\\.getDeclared(Method|Field|Constructor)s?\\(", "reflection is forbidden (Hub wiki)"},
 		{"\\.getMethod\\(", "reflection is forbidden (Hub wiki)"},
 		{"\\bTypeToken\\b", "Gson TypeToken is reflection (reviewer, plugin-hub#16712)"},
+		{"\\bStackWalker\\b", "a stack walk is reflection by another name; never, even to name a plugin (WORKING_RULES §4, owner 2026-10-21)"},
+		{"\\.getStackTrace\\(", "a stack walk is reflection by another name; never, even to name a plugin (WORKING_RULES §4, owner 2026-10-21)"},
+		{"\\.dumpStack\\(", "a stack walk is reflection by another name; never, even to name a plugin (WORKING_RULES §4, owner 2026-10-21)"},
 		{"Thread\\.sleep\\(", "Thread.sleep is not allowed; use a scheduled executor (reviewer, plugin-hub#16712)"},
 		{"\\.interrupt\\(\\)", "Thread.interrupt is not allowed (reviewer, plugin-hub#16712)"},
 		{"awaitTermination\\(", "never block in shutDown; use shutdownNow (Hub AGENTS.md)"},
@@ -166,6 +169,8 @@ public class HubRulesTest
 	{
 		// Prove the scanner fails on a violation, so a green run means something.
 		assertEquals(1, violations("import java.lang.reflect.Method;\nclass X {}").size());
+		assertEquals(1, violations("class X { Object s = StackWalker.getInstance(); }").size());
+		assertEquals(1, violations("class X { Object s = new Throwable().getStackTrace(); }").size());
 		assertEquals(1, violations("class X { void f() throws Exception { Thread.sleep(10); } }").size());
 		assertEquals(1, violations("class X { Object g = new Gson(); }").size());
 		// ...and ignores the same words in comments and strings.
