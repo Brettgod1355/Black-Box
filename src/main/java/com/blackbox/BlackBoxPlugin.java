@@ -119,7 +119,7 @@ public class BlackBoxPlugin extends Plugin
 	private static final Logger log = LoggerFactory.getLogger(BlackBoxPlugin.class);
 
 	/** The version written into every recording's first line. */
-	static final String VERSION = "0.2";
+	static final String VERSION = "0.3";
 
 	private static final DateTimeFormatter SESSION_NAME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 	private static final long BYTES_PER_MEGABYTE = 1024L * 1024;
