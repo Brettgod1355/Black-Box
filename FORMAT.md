@@ -2,7 +2,8 @@
 
 A recording is a folder named by its start, `2026-10-20_18-02-11`, holding `events.jsonl` (one JSON object per
 line, in the order things happened), `client-log.txt` (the client's own log for the same time) and `shots/`
-(pictures). An export is a zip of the same, cut to a window, with a `README.txt` and a `names.txt`.
+(pictures). An export is a zip of the same, cut to a window, with a `README.txt` (what the files hold, and the
+log's warnings and errors summed up) and a `names.txt`.
 
 Every line in `events.jsonl` has three fields: `e`, the kind of line; `tick`, the game tick it happened on
 (the client counts about 1.67 a second; a login resets nothing, the count keeps rising); and `ms`, milliseconds

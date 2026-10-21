@@ -14,7 +14,9 @@ import com.google.gson.Gson;
 import java.io.BufferedReader;
 import java.io.StringReader;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.junit.Test;
 
@@ -107,6 +109,65 @@ public class ClipBundleTest
 		assertEquals("a", got.get(0).name);
 		assertEquals("b", got.get(1).name);
 		assertTrue(ClipBundle.covering(Arrays.asList(a, b, c), 4_000_000, 5_000_000).isEmpty());
+	}
+
+	@Test
+	public void logSummaryGroupsWarningsByWhereTheyStart()
+	{
+		List<String> log = Arrays.asList(
+			"2026-10-20 16:34:19 CDT [Client] INFO  n.r.c.RuneLite - RuneLite version 1.13.2",
+			"2026-10-20 16:34:19 CDT [Client] WARN  n.r.c.u.OverlayRenderer - Error during overlay rendering",
+			"java.lang.NullPointerException: Cannot invoke \"Player.getLocalLocation()\" because \"local\" is null",
+			"\tat com.easyempty.EasyEmptyOverlay.render(EasyEmptyOverlay.java:50)",
+			"\tat net.runelite.client.ui.overlay.OverlayRenderer.safeRender(OverlayRenderer.java:570)",
+			"2026-10-20 16:34:20 CDT [Client] WARN  n.r.c.u.OverlayRenderer - Error during overlay rendering",
+			"java.lang.NullPointerException: Cannot invoke \"Player.getLocalLocation()\" because \"local\" is null",
+			"\tat com.easyempty.EasyEmptyOverlay.render(EasyEmptyOverlay.java:50)",
+			"2026-10-20 16:40:10 CDT [Client] WARN  n.r.c.u.OverlayRenderer - Error during overlay rendering",
+			"java.lang.NullPointerException: x",
+			"\tat com.treecount.TreeOverlay.render(TreeOverlay.java:9)",
+			"2026-10-20 16:40:11 CDT [Client] ERROR c.b.BlackBoxPlugin - Picture failed",
+			"java.lang.AssertionError: must be called on client thread",
+			"\tat net.runelite.api.Client.checkThread(Client.java:1)",
+			"\tat com.blackbox.BlackBoxPlugin.chatBounds(BlackBoxPlugin.java:1700)",
+			"2026-10-20 16:40:12 CDT [Client] INFO  c.b.BlackBoxPlugin - fine");
+		String summary = ClipBundle.logSummary(log);
+		String[] lines = summary.split("\n");
+		assertTrue(lines[0], lines[0].startsWith("4 warning and error lines in client-log.txt"));
+		// Biggest group first, with its span, level, logger, message, exception and first frame.
+		assertEquals("      2  16:34:19 to 16:34:20  WARN n.r.c.u.OverlayRenderer - Error during overlay rendering", lines[2]);
+		assertEquals("         NullPointerException in com.easyempty.EasyEmptyOverlay.render", lines[3]);
+		// The same message from another plugin is its own group, told apart by the frame.
+		assertTrue(summary.contains("      1  16:40:10  WARN n.r.c.u.OverlayRenderer - Error during overlay rendering\n"
+			+ "         NullPointerException in com.treecount.TreeOverlay.render\n"));
+		assertTrue(summary.contains("      1  16:40:11  ERROR c.b.BlackBoxPlugin - Picture failed\n"
+			+ "         AssertionError in net.runelite.api.Client.checkThread\n"));
+		assertFalse("INFO lines are not counted", summary.contains("fine"));
+
+		assertEquals("client-log.txt holds no warnings or errors.\n", ClipBundle.logSummary(Collections.emptyList()));
+		assertEquals("client-log.txt holds no warnings or errors.\n", ClipBundle.logSummary(Collections.singletonList(log.get(0))));
+	}
+
+	@Test
+	public void logSummaryStopsAtTheGroupLimit()
+	{
+		List<String> log = new ArrayList<>();
+		for (int i = 0; i < ClipBundle.SUMMARY_GROUPS + 3; i++)
+		{
+			log.add("2026-10-20 16:34:19 CDT [Client] WARN  a.Logger - message " + i);
+		}
+		String summary = ClipBundle.logSummary(log);
+		assertTrue(summary.contains("  and 3 more groups.\n"));
+		assertEquals(ClipBundle.SUMMARY_GROUPS + 3, summary.split("\n").length);   // the heading's two lines, the groups, the "more" line
+	}
+
+	@Test
+	public void readmeCarriesTheLogSummary()
+	{
+		String readme = ClipBundle.readme(false, true, Collections.singletonList("2026-10-20 16:34:19 CDT [Client] WARN  a.B - oops"));
+		assertTrue(readme.contains("1 warning or error line in client-log.txt"));
+		assertTrue(readme.contains("WARN a.B - oops"));
+		assertFalse(readme.contains("%"));
 	}
 
 	@Test

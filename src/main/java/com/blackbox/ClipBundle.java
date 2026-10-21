@@ -46,6 +46,7 @@ final class ClipBundle
 		+ "settings in force are always in the file.\n"
 		+ "client-log.txt holds the client's own log lines for the same minutes, plus every warning and error since the\n"
 		+ "client started, as RuneLite's client.log would, caught inside the client with your name and home folder replaced.\n"
+		+ "%LOG%"
 		+ "names.txt gives RuneLite's name for every varbit, interface, sound, animation, NPC, object and item id the\n"
 		+ "events mention.\n"
 		+ "%PICTURES%"
@@ -61,6 +62,12 @@ final class ClipBundle
 	 * and a clip never claims the chat is blacked out when it is not.
 	 */
 	static String readme(boolean pictures, boolean chatHidden)
+	{
+		return readme(pictures, chatHidden, java.util.Collections.emptyList());
+	}
+
+	/** As above, with the warnings and errors of the clip's client log summed up (the lines of {@code client-log.txt}). */
+	static String readme(boolean pictures, boolean chatHidden, List<String> log)
 	{
 		String shots;
 		String never;
@@ -83,8 +90,118 @@ final class ClipBundle
 				+ "and chat. Look at them before sending, or turn Pictures in clips off and export again.\n";
 			never = "Apart from what the pictures show, it never holds: other players' chat,";
 		}
-		return README.replace("%PICTURES%", shots).replace("%NEVER%", never);
+		return README.replace("%PICTURES%", shots).replace("%NEVER%", never).replace("%LOG%", logSummary(log));
 	}
+	/** How many groups the summary lists before saying "and N more". */
+	static final int SUMMARY_GROUPS = 25;
+
+	/**
+	 * The warnings and errors of a client log in a few lines, so a developer sees at once whether any are their
+	 * plugin's: one group per level, logger, message and the code the stack trace starts in (the frame that
+	 * tells one plugin's "Error during overlay rendering" from another's), biggest first, each with its count and
+	 * the time of its first and last line. A player's log after a login or a death is mostly other plugins'
+	 * errors; this keeps a developer from reading three hundred lines to learn that none were theirs.
+	 */
+	static String logSummary(List<String> log)
+	{
+		// Pass one: each warning or error line with the first exception name and stack frame that follow it.
+		List<String[]> entries = new ArrayList<>();          // level, logger, message, clock, exception, frame
+		String[] entry = null;
+		for (String line : log)
+		{
+			if (stamp(line) != null)
+			{
+				entry = null;
+				if (!isWarningOrError(line))
+				{
+					continue;
+				}
+				int bracket = line.indexOf("] ");
+				String rest = line.substring(bracket + 2).trim();            // "WARN  n.r.c.u.OverlayRenderer - Error during ..."
+				int space = rest.indexOf(' ');
+				String level = space < 0 ? rest : rest.substring(0, space);
+				rest = space < 0 ? "" : rest.substring(space).trim();
+				int dash = rest.indexOf(" - ");
+				String logger = dash < 0 ? rest : rest.substring(0, dash);
+				String message = dash < 0 ? "" : rest.substring(dash + 3).trim();
+				if (message.length() > 100)
+				{
+					message = message.substring(0, 100) + "…";
+				}
+				entry = new String[]{level, logger, message, line.substring(11, 19), null, null};
+				entries.add(entry);
+			}
+			else if (entry != null && entry[5] == null)
+			{
+				String text = line.trim();
+				if (text.startsWith("at "))
+				{
+					int paren = text.indexOf('(');
+					entry[5] = paren < 0 ? text.substring(3) : text.substring(3, paren);
+				}
+				else if (entry[4] == null && !text.isEmpty() && !text.startsWith("...") && !text.startsWith("Caused by"))
+				{
+					int colon = text.indexOf(':');
+					String exception = colon < 0 ? text : text.substring(0, colon);
+					entry[4] = exception.substring(exception.lastIndexOf('.') + 1);
+				}
+			}
+		}
+		if (entries.isEmpty())
+		{
+			return "client-log.txt holds no warnings or errors.\n";
+		}
+		// Pass two: group by level, logger, message, exception and frame; count and span each group.
+		Map<String, int[]> counts = new LinkedHashMap<>();
+		Map<String, String[]> first = new LinkedHashMap<>();
+		Map<String, String> last = new LinkedHashMap<>();
+		for (String[] e : entries)
+		{
+			String key = String.join("\t", e[0], e[1], e[2], String.valueOf(e[4]), String.valueOf(e[5]));
+			counts.computeIfAbsent(key, k -> new int[1])[0]++;
+			first.putIfAbsent(key, e);
+			last.put(key, e[3]);
+		}
+		List<String> keys = new ArrayList<>(counts.keySet());
+		keys.sort((a, b) -> counts.get(b)[0] - counts.get(a)[0]);
+		int total = entries.size();
+		StringBuilder out = new StringBuilder();
+		out.append(total).append(total == 1 ? " warning or error line" : " warning and error lines")
+			.append(" in client-log.txt, grouped, most first (count, first to last time, level, logger, message, then where\n")
+			.append("the stack trace starts, which tells one plugin's error from another's):\n");
+		int shown = 0;
+		for (String k : keys)
+		{
+			if (shown == SUMMARY_GROUPS)
+			{
+				out.append("  and ").append(keys.size() - shown).append(" more groups.\n");
+				break;
+			}
+			shown++;
+			String[] e = first.get(k);
+			out.append(String.format("  %5d  %s", counts.get(k)[0], e[3]));
+			if (!last.get(k).equals(e[3]))
+			{
+				out.append(" to ").append(last.get(k));
+			}
+			out.append("  ").append(e[0]).append(' ').append(e[1]).append(" - ").append(e[2]).append('\n');
+			if (e[4] != null || e[5] != null)
+			{
+				out.append("         ");
+				if (e[4] != null)
+				{
+					out.append(e[4]);
+				}
+				if (e[5] != null)
+				{
+					out.append(e[4] != null ? " in " : "in ").append(e[5]);
+				}
+				out.append('\n');
+			}
+		}
+		return out.toString();
+	}
+
 	private static final DateTimeFormatter LOG_STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
 	/** One recording that may contribute to a clip. */
@@ -341,7 +458,7 @@ final class ClipBundle
 			}
 			boolean anyPicture = shots.values().stream().anyMatch(list -> !list.isEmpty());
 			out.putNextEntry(new ZipEntry("README.txt"));
-			out.write(readme(anyPicture, chatHidden).getBytes(StandardCharsets.UTF_8));
+			out.write(readme(anyPicture, chatHidden, log).getBytes(StandardCharsets.UTF_8));
 			out.closeEntry();
 			out.putNextEntry(new ZipEntry(SessionLog.EVENTS_FILE));
 			for (String line : events)

@@ -33,8 +33,11 @@ position and heading. If pictures were included, `shots/` has one named with the
 
 ## 4. Did anything go wrong in the client?
 
-`client-log.txt`: search for `WARN` and `ERROR`. Every one from the whole recording is in an export, with the
-first ten frames of the stack trace. A plugin's own log lines, at INFO and above, are there too.
+Start with `README.txt`: it sums up every warning and error in `client-log.txt`, grouped by level, logger,
+message and the code the stack trace starts in, biggest group first, so you see at once whether any are your
+plugin's. A log after a login or a death is mostly other plugins' null pointers on a player that is not there
+yet. Then `client-log.txt` itself: search for `WARN` and `ERROR`. Every one from the whole recording is in an
+export, with the first ten frames of the stack trace. A plugin's own log lines, at INFO and above, are there too.
 
     grep -n 'ERROR\|WARN' client-log.txt
 
