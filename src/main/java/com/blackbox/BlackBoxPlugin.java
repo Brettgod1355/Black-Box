@@ -994,6 +994,12 @@ public class BlackBoxPlugin extends Plugin
 		}
 
 		@Override
+		public boolean picturesShowChat()
+		{
+			return config.picturesInClips() && !config.hideChat();
+		}
+
+		@Override
 		public void beginMark(Consumer<String> then)
 		{
 			clientThread.invoke(() ->

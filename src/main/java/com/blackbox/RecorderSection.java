@@ -43,6 +43,10 @@ class RecorderSection extends JPanel
 	private final Dot dot = new Dot();
 	private final JLabel title = new JLabel("Not recording");
 	private final JLabel detail = new JLabel(" ");
+	/** Shown only while an export's pictures would carry the chat box. */
+	private final javax.swing.JTextArea chatWarning = Wrap.text(
+		"Pictures will show your chat. Turn Hide the chat box on in Black Box's settings, or Pictures in clips off.",
+		ColorScheme.PROGRESS_ERROR_COLOR, 3);
 	private final JPanel markCards = new JPanel(new ShownCardLayout())
 	{
 		@Override
@@ -74,7 +78,12 @@ class RecorderSection extends JPanel
 		card.add(top, BorderLayout.NORTH);
 		detail.setFont(FontManager.getRunescapeSmallFont());
 		detail.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		card.add(detail, BorderLayout.SOUTH);
+		JPanel under = new JPanel(new BorderLayout(0, 4));
+		under.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		under.add(detail, BorderLayout.NORTH);
+		chatWarning.setVisible(false);
+		under.add(chatWarning, BorderLayout.SOUTH);
+		card.add(under, BorderLayout.SOUTH);
 		add(fullWidth(card));
 
 		JPanel actions = new JPanel(new GridLayout(1, 2, 4, 0));
@@ -168,6 +177,12 @@ class RecorderSection extends JPanel
 		{
 			title.setText("Recording is off");
 			detail.setText("Turn Record on in Black Box's settings.");
+		}
+		boolean showChat = desk.picturesShowChat();
+		if (chatWarning.isVisible() != showChat)
+		{
+			chatWarning.setVisible(showChat);
+			revalidate();
 		}
 	}
 

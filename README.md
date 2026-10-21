@@ -64,7 +64,8 @@ watching it.
 ## The sidebar
 
 Click the black box icon in the sidebar. Recording starts by itself when you log in; the card at the top shows
-the red dot, since when, the time so far and the size. **Export** saves the last 2, 10 or 30 minutes, a number
+the red dot, since when, the time so far and the size, and a red line when an export's pictures would show your
+chat (Pictures in clips on, Hide the chat box off), so you can change that before exporting. **Export** saves the last 2, 10 or 30 minutes, a number
 of minutes you choose, or all of today, as one zip to send to a developer; **Open folder** opens the folder that
 holds the recordings and the exports. **Mark**: press it the moment you see the problem. The time is saved at
 once and the Mark area becomes a small form: say what happened, as much or as little as you like, and press

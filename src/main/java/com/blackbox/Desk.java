@@ -36,6 +36,9 @@ interface Desk
 	/** Whether the Record setting is on: recording starts at login by itself. */
 	boolean isRecordingEnabled();
 
+	/** Whether an export's pictures would show the chat: Pictures in clips on and Hide the chat box off. */
+	boolean picturesShowChat();
+
 	/** The current recording's folder name, or null. */
 	String currentName();
 
