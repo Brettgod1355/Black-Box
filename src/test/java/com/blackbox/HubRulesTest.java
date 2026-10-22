@@ -94,6 +94,15 @@ public class HubRulesTest
 	}
 
 	@Test
+	public void thePluginLoadsOutsideDeveloperMode() throws IOException
+	{
+		// A developerPlugin never loads for a player who installs it from the Hub.
+		String plugin = new String(Files.readAllBytes(MAIN_SOURCES.resolve(Paths.get("com", "blackbox", "BlackBoxPlugin.java"))),
+			StandardCharsets.UTF_8);
+		assertFalse("developerPlugin must not be set", plugin.contains("developerPlugin"));
+	}
+
+	@Test
 	public void noServicesFileAndNoBuildArtifactsAreShipped() throws IOException
 	{
 		Path services = MAIN_RESOURCES.resolve("META-INF").resolve("services");

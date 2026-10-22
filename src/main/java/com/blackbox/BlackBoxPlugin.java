@@ -136,7 +136,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Black Box: records what the game shows a plugin while you play, so a plugin's logic can be tested against
- * a real session later without playing again. A developer tool: it only loads in RuneLite's developer mode.
+ * a real session later without playing again. A tool for developers and the players who help them, built to the Plugin Hub rules.
  * <p>
  * It only reads what RuneLite already exposes. It sends nothing to the game and nothing over the network,
  * and writes only to its own folder. Other players' names and chat are left out, and the player's own name
@@ -146,8 +146,7 @@ import org.slf4j.LoggerFactory;
 	name = "Black Box",
 	description = "Developer tool: records game events and screenshots while you play, for testing plugins against later",
 	tags = {"developer", "testing", "recorder", "replay", "screenshot"},
-	internalName = "black-box",
-	developerPlugin = true
+	internalName = "black-box"
 )
 public class BlackBoxPlugin extends Plugin
 {

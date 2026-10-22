@@ -6,7 +6,8 @@ animation, interfaces opening and closing, your clicks, and every plugin's notif
 screenshots of the game view. Later, a plugin's tests can replay the recording through the plugin's own
 logic and check what it decided, without playing the same session again.
 
-It only loads in RuneLite's developer mode. It is not meant for the Plugin Hub.
+It is built to the Plugin Hub's rules and is headed for the Hub, so a developer can ask a player to install it and
+send a clip of the minutes before a bug.
 
 ## Why it exists
 
