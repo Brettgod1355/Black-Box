@@ -445,6 +445,18 @@ class DebugProbes
 	 * kept only in {@link #TEXT_INTERFACES}, and there it has the player's name and every other name the client knows
 	 * (friends, ignores, channel and clan members, players in view and aboard boats) replaced.
 	 */
+	/**
+	 * Adds a name, skipping none: a friend who never changed name has no previous name, and the sorted set refuses null
+	 * (it threw on every tick with Interface contents on, stopping the tests after it; Original RS2, 2026-10-22).
+	 */
+	static void addName(Set<String> into, String name)
+	{
+		if (name != null && !name.isEmpty())
+		{
+			into.add(name);
+		}
+	}
+
 	class Widgets implements Probe
 	{
 		private Map<String, String> last = new HashMap<>();
@@ -586,7 +598,7 @@ class DebugProbes
 			if (channel != null)
 			{
 				addNames(all, channel);
-				all.add(channel.getOwner());
+				addName(all, channel.getOwner());
 			}
 			for (ClanChannel clan : new ClanChannel[]{client.getClanChannel(), client.getGuestClanChannel()})
 			{
@@ -594,7 +606,7 @@ class DebugProbes
 				{
 					for (ClanChannelMember member : clan.getMembers())
 					{
-						all.add(member.getName());
+						addName(all, member.getName());
 					}
 				}
 			}
@@ -607,7 +619,6 @@ class DebugProbes
 					addPlayers(all, boat);
 				}
 			}
-			all.remove(null);
 			String key = String.join("\n", all);
 			if (!key.equals(namesKey))
 			{
@@ -628,7 +639,7 @@ class DebugProbes
 			{
 				if (player != null && player != client.getLocalPlayer())
 				{
-					into.add(player.getName());
+					addName(into, player.getName());
 				}
 			}
 		}
@@ -643,8 +654,8 @@ class DebugProbes
 			{
 				if (member != null)
 				{
-					into.add(member.getName());
-					into.add(member.getPrevName());
+					addName(into, member.getName());
+					addName(into, member.getPrevName());
 				}
 			}
 		}

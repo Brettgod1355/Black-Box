@@ -19,6 +19,17 @@ import static org.junit.Assert.assertTrue;
 public class PrivacyTest
 {
 	@Test
+	public void namesToHideSkipAMissingName()
+	{
+		// Original RS2, 2026-10-22: a friend with no previous name threw on every tick with Interface contents on.
+		java.util.Set<String> names = new java.util.TreeSet<>();
+		DebugProbes.addName(names, "Cow31337Killer");
+		DebugProbes.addName(names, null);
+		DebugProbes.addName(names, "");
+		assertEquals(java.util.Collections.singleton("Cow31337Killer"), names);
+	}
+
+	@Test
 	public void onlyGameWrittenChatIsKept()
 	{
 		assertTrue(Privacy.recordsChat(ChatMessageType.GAMEMESSAGE));
