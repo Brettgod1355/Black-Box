@@ -21,6 +21,7 @@ import java.io.OutputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,6 +38,12 @@ import javax.swing.SwingUtilities;
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import net.runelite.api.Actor;
+import net.runelite.api.ChatMessageType;
+import net.runelite.api.KeyCode;
+import net.runelite.api.Menu;
+import net.runelite.api.MenuEntry;
+import net.runelite.api.Tile;
+import net.runelite.api.TileItem;
 import net.runelite.api.ActorSpotAnim;
 import net.runelite.api.Client;
 import net.runelite.api.CollisionData;
@@ -51,6 +58,16 @@ import net.runelite.api.WorldView;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.AnimationChanged;
+import net.runelite.api.events.BeforeRender;
+import net.runelite.api.events.CanvasSizeChanged;
+import net.runelite.api.events.FocusChanged;
+import net.runelite.api.events.ItemDespawned;
+import net.runelite.api.events.ItemSpawned;
+import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.api.events.MenuOpened;
+import net.runelite.api.events.PlayerMenuOptionsChanged;
+import net.runelite.api.events.ResizeableChanged;
+import net.runelite.api.events.WorldViewLoaded;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.GameObjectDespawned;
@@ -80,8 +97,21 @@ import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigDescriptor;
 import net.runelite.client.config.ConfigItemDescriptor;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.config.Notification;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.events.NpcLootReceived;
+import net.runelite.client.events.PartyChanged;
+import net.runelite.client.events.PlayerLootReceived;
+import net.runelite.client.events.ProfileChanged;
+import net.runelite.client.events.RuneScapeProfileChanged;
+import net.runelite.client.events.ServerNpcLoot;
+import net.runelite.client.externalplugins.ExternalPluginManager;
+import net.runelite.client.externalplugins.PluginHubManifest;
+import net.runelite.client.game.ItemStack;
+import net.runelite.client.party.PartyService;
+import net.runelite.client.party.events.UserJoin;
+import net.runelite.client.party.events.UserPart;
 import net.runelite.client.events.NotificationFired;
 import net.runelite.client.events.PluginChanged;
 import net.runelite.client.events.PluginMessage;
@@ -89,9 +119,13 @@ import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.PluginManager;
+import net.runelite.client.plugins.loottracker.LootReceived;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.ui.overlay.OverlayManager;
+import net.runelite.client.ui.overlay.infobox.InfoBox;
+import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
 import net.runelite.client.util.Filepath;
 import net.runelite.client.util.HotkeyListener;
 import net.runelite.client.util.ImageUtil;
@@ -155,6 +189,18 @@ public class BlackBoxPlugin extends Plugin
 	@Inject
 	private ConfigManager configManager;
 
+	@Inject
+	private OverlayManager overlayManager;
+
+	@Inject
+	private InfoBoxManager infoBoxManager;
+
+	@Inject
+	private PartyService partyService;
+
+	@Inject
+	private ExternalPluginManager externalPluginManager;
+
 	/** Every plugin's config group, for the setting lines; client thread. */
 	private final Map<String, Plugin> groups = new HashMap<>();
 	/** A Mark pressed in the sidebar and not yet saved: its tick, its time and its picture; client thread. */
@@ -193,6 +239,29 @@ public class BlackBoxPlugin extends Plugin
 	 * uses, so by the time the overhead text handler runs the other plugins have had their turn at the same event.
 	 */
 	static final float LAST = -1000f;
+	/** Before every other subscriber, to see an event as the game posted it. */
+	static final float FIRST = 1000f;
+	/** The overlays, infoboxes and hint arrow last written, so a line comes only on a change (format 9); client thread. */
+	private String overlaysSeen = "";
+	private String infoBoxesSeen = "";
+	private String hintSeen = "";
+	/** Whether this recording holds its varp snapshot yet; client thread. */
+	private boolean varpsDone;
+	/** Party members by a number that holds for one recording, never their id or name; client thread. */
+	private final Map<Long, Integer> partyMembers = new HashMap<>();
+	/** Frames since the last game tick and the longest gap between them; client thread. */
+	private final FrameClock frameClock = new FrameClock();
+	/** Menu entries added since the last game tick; client thread. */
+	private int menuAdds;
+	/** How long the last probe waited on the Swing thread and on the client thread, in ms; -1 before the first. */
+	private volatile double edtWaitMs = -1;
+	private volatile boolean edtWaiting;
+	private volatile long edtPostedAt;
+	private volatile double clientWaitMs = -1;
+	/** Whether the window had focus at the last FocusChanged; null before the first. */
+	private Boolean focused;
+	/** The menu as the game opened it, before other plugins' handlers; client thread. */
+	private JsonArray menuBefore;
 	/**
 	 * NPCs whose overhead text changed this client cycle, by scene index, with the text the other subscribers
 	 * left on them. The cycle's own ClientTick comes a moment after the event (both inside the same client
@@ -303,6 +372,14 @@ public class BlackBoxPlugin extends Plugin
 		shotCount = 0;
 		lastShotAt = 0;
 		npcTiles.clear();
+		varpsDone = false;
+		overlaysSeen = "";
+		infoBoxesSeen = "";
+		hintSeen = "";
+		partyMembers.clear();
+		// Frames and menu entries from the login screen are not this recording's.
+		frameClock.reset();
+		menuAdds = 0;
 		pinPause = pinShowing();
 		JsonObject header = started.line("session", client.getTickCount(), now);
 		header.addProperty("format", SessionLog.FORMAT);
@@ -318,6 +395,8 @@ public class BlackBoxPlugin extends Plugin
 			pinLine(started, "pause", now);
 		}
 		writePlugins(started, now);
+		writeProfile(started, now, null);
+		writePlayerOptions(started, now);
 		Player me = client.getLocalPlayer();
 		logTap.setOwnName(me == null ? null : me.getName());
 		executor.execute(() ->
@@ -387,7 +466,9 @@ public class BlackBoxPlugin extends Plugin
 		{
 			Plugin plugin = groups.get(group);
 			// Every plugin's value, through the same withholding as a snapshot (secrets, webhooks and tokens never).
-			String value = plugin == null ? null : valueFor(plugin, key, newValue);
+			String value = plugin == null
+				? (RUNELITE_GROUP.equals(group) && newValue != null ? scrub(SettingsSnapshot.other(key, newValue)) : null)
+				: valueFor(plugin, key, newValue);
 			if ((plugin != null && shown(plugin, key)) || BlackBoxConfig.GROUP.equals(group))
 			{
 				// Chart markers for settings a player can see and change; hidden ones are where plugins keep their own
@@ -398,14 +479,14 @@ public class BlackBoxPlugin extends Plugin
 			{
 				JsonObject o = session.line("setting", client.getTickCount(), now);
 				o.addProperty("group", group);
-				o.addProperty("key", key);
+				o.addProperty("key", keyFor(plugin == null ? null : descriptorOf(plugin), group, key));
 				if (plugin != null)
 				{
 					o.addProperty("plugin", plugin.getName());
-					if (value != null)
-					{
-						o.addProperty("value", value);
-					}
+				}
+				if (value != null)
+				{
+					o.addProperty("value", value);
 				}
 				session.add(o);
 			}
@@ -439,6 +520,8 @@ public class BlackBoxPlugin extends Plugin
 				o.addProperty("name", name);
 				o.addProperty("on", on);
 				session.add(o);
+				// A plugin's right-click options on players come and go with it.
+				writePlayerOptions(session, now);
 			}
 		});
 	}
@@ -521,8 +604,58 @@ public class BlackBoxPlugin extends Plugin
 				collision(top, WorldPoint.fromLocal(client, ground));
 			}
 		}
+		// Format 9: the player's own pace and input, and how smoothly frames came since the last tick.
+		o.addProperty("cycle", client.getGameCycle());
+		if (!pinPause)
+		{
+			// Input counters say when keys were pressed; not while the keypad shows.
+			o.addProperty("idleMouse", client.getMouseIdleTicks());
+			o.addProperty("idleKeys", client.getKeyboardIdleTicks());
+		}
+		o.addProperty("energy", client.getEnergy());
+		o.addProperty("weight", client.getWeight());
+		o.addProperty("camYaw", client.getCameraYaw());
+		if (me != null)
+		{
+			o.addProperty("facing", me.getOrientation());
+			WorldView here = me.getWorldView();
+			if (here != null && here.isInstance())
+			{
+				o.addProperty("instance", true);
+			}
+		}
+		o.addProperty("frames", frameClock.frames());
+		o.addProperty("longestFrameMs", frameClock.longestGapMs());
+		frameClock.reset();
+		if (!pinPause)
+		{
+			o.addProperty("menuAdds", menuAdds);
+		}
+		menuAdds = 0;
+		if (edtWaiting)
+		{
+			// The Swing thread has not run the last probe yet: a freeze in progress, not the last wait.
+			o.addProperty("edtPendingMs", msSince(edtPostedAt));
+		}
+		else if (edtWaitMs >= 0)
+		{
+			o.addProperty("edtWaitMs", edtWaitMs);
+		}
+		if (clientWaitMs >= 0)
+		{
+			o.addProperty("clientWaitMs", clientWaitMs);
+		}
 		session.add(o);
 		npcMoves();
+		probe();
+		hintArrow();
+		if (!pinPause)
+		{
+			// Overlay bounds move with what the keypad draws; none while it shows.
+			overlays();
+		}
+		infoBoxes();
+		varps();
 
 		int every = config.shotEverySeconds();
 		if (every > 0 && !pinPause && System.currentTimeMillis() - lastShotAt >= every * 1000L)
@@ -531,16 +664,34 @@ public class BlackBoxPlugin extends Plugin
 		}
 	}
 
-	@Subscribe
+	@Subscribe(priority = LAST)
 	public void onChatMessage(ChatMessage event)
 	{
-		if (session == null || !Privacy.recordsChat(event.getType()))
+		if (session == null)
+		{
+			return;
+		}
+		// A friend logging in or out, or a friends chat notice, is worth its moment, never its name (format 9).
+		boolean friendNotice = event.getType() == ChatMessageType.LOGINLOGOUTNOTIFICATION
+			|| event.getType() == ChatMessageType.FRIENDSCHATNOTIFICATION;
+		if (!friendNotice && !Privacy.recordsChat(event.getType()))
 		{
 			return;
 		}
 		JsonObject o = line("chat");
 		o.addProperty("type", event.getType().name());
-		o.addProperty("text", scrub(event.getMessage()));
+		o.addProperty("text", friendNotice ? Privacy.WITHHELD : scrub(event.getMessage()));
+		// After every other plugin (LAST): a plugin that rewrote the line in the chat box leaves it here. RuneLite's
+		// chat formatting writes the shown text beside the value, so that one wins when set.
+		if (!friendNotice && event.getMessageNode() != null)
+		{
+			String formatted = event.getMessageNode().getRuneLiteFormatMessage();
+			String shown = formatted != null ? formatted : event.getMessageNode().getValue();
+			if (!Text.removeTags(plain(shown)).equals(Text.removeTags(plain(event.getMessage()))))
+			{
+				o.addProperty("shown", scrub(shown));
+			}
+		}
 		session.add(o);
 	}
 
@@ -808,8 +959,16 @@ public class BlackBoxPlugin extends Plugin
 		}
 		JsonObject o = line("click");
 		o.addProperty("option", event.getMenuOption() == null ? "" : Text.removeTags(event.getMenuOption()));
-		// A click on another player names them; leave the target out.
-		String target = event.getMenuTarget() == null || Privacy.targetsPlayer(event.getMenuAction())
+		// The option as the menu showed it, colors included, when a plugin colored it (format 9): an equals check
+		// on the plain word fails on a colored one.
+		String raw = event.getMenuOption();
+		if (raw != null && !raw.equals(Text.removeTags(raw)))
+		{
+			o.addProperty("rawOption", scrub(raw));
+		}
+		// A click on another player names them, and so does one on a chat line or a friend; leave the target out.
+		boolean onNpc = event.getMenuEntry() != null && event.getMenuEntry().getNpc() != null;
+		String target = event.getMenuTarget() == null || !(onNpc || Privacy.keepsTarget(event.getMenuAction(), event.getItemId()))
 			? "" : scrub(Text.removeTags(event.getMenuTarget()));
 		o.addProperty("target", target);
 		o.addProperty("action", event.getMenuAction() == null ? "" : event.getMenuAction().name());
@@ -837,6 +996,26 @@ public class BlackBoxPlugin extends Plugin
 		JsonObject o = line("notify");
 		String text = scrub(event.getMessage());
 		o.addProperty("text", text);
+		// How the notification was set up to reach the player, and whether the window had focus (format 9). A custom
+		// sound's file name is left out: it is a path on the player's computer.
+		Notification how = event.getNotification();
+		if (how != null)
+		{
+			JsonObject settings = new JsonObject();
+			settings.addProperty("enabled", how.isEnabled());
+			settings.addProperty("override", how.isOverride());
+			settings.addProperty("tray", how.isTray());
+			settings.addProperty("sound", how.getSound() == null ? null : how.getSound().name());
+			settings.addProperty("flash", how.getFlash() == null ? null : how.getFlash().name());
+			settings.addProperty("requestFocus", how.getRequestFocus() == null ? null : how.getRequestFocus().name());
+			settings.addProperty("gameMessage", how.isGameMessage());
+			settings.addProperty("whenFocused", how.isSendWhenFocused());
+			o.add("how", settings);
+		}
+		if (focused != null)
+		{
+			o.addProperty("focused", focused);
+		}
 		live.note(System.currentTimeMillis(), "notify", text);
 		session.add(o);
 		if (config.shotOnNotification())
@@ -1408,9 +1587,43 @@ public class BlackBoxPlugin extends Plugin
 			{
 				one.addProperty("version", version);
 			}
+			// Format 9: switched on but not running (a start-up that failed), and which Hub build it is.
+			one.addProperty("active", pluginManager.isPluginActive(plugin));
+			PluginHubManifest.JarData jar = ExternalPluginManager.getJarData(plugin.getClass());
+			if (jar != null)
+			{
+				one.addProperty("jarHash", jar.getJarHash());
+			}
+			PluginHubManifest.DisplayData display = ExternalPluginManager.getDisplayData(plugin.getClass());
+			if (display != null)
+			{
+				one.addProperty("updatedAt", display.getLastUpdatedAt());
+			}
 			names.add(one);
 		}
 		installed.add("plugins", names);
+		// Hub plugins the player installed that did not load at all (format 9).
+		Set<String> loaded = new HashSet<>();
+		for (Plugin plugin : all)
+		{
+			String internal = ExternalPluginManager.getInternalName(plugin.getClass());
+			if (internal != null)
+			{
+				loaded.add(internal);
+			}
+		}
+		JsonArray notLoaded = new JsonArray();
+		for (String internal : externalPluginManager.getInstalledExternalPlugins())
+		{
+			if (!loaded.contains(internal))
+			{
+				notLoaded.add(internal);
+			}
+		}
+		if (notLoaded.size() > 0)
+		{
+			installed.add("notLoaded", notLoaded);
+		}
 		target.add(installed);
 		for (Plugin plugin : all)
 		{
@@ -1424,8 +1637,20 @@ public class BlackBoxPlugin extends Plugin
 			o.addProperty("plugin", plugin.getName());
 			o.addProperty("group", group);
 			o.add("values", SettingsSnapshot.of(descriptor.getItems(), key -> configManager.getConfiguration(group, key)));
+			JsonObject other = otherValues(group, descriptor);
+			if (other.size() > 0)
+			{
+				o.add("other", other);
+			}
 			target.add(o);
 		}
+		// RuneLite's own settings: overlay positions, notification defaults, the installed Hub plugins (format 9).
+		JsonObject core = target.line("settings", client.getTickCount(), now);
+		core.addProperty("plugin", "RuneLite");
+		core.addProperty("group", RUNELITE_GROUP);
+		core.add("values", new JsonObject());
+		core.add("other", otherValues(RUNELITE_GROUP, null));
+		target.add(core);
 	}
 
 	/** A changed setting's value, withheld like a snapshot would; null when it is hidden or unset. */
@@ -1446,17 +1671,18 @@ public class BlackBoxPlugin extends Plugin
 			{
 				continue;
 			}
-			if (item.getItem().hidden())
-			{
-				return null;
-			}
 			if (item.getItem().secret())
 			{
 				return SettingsSnapshot.SECRET;
 			}
+			if (item.getItem().hidden())
+			{
+				// Where a plugin keeps its own state (format 9): written like any value it keeps outside its settings.
+				return scrub(SettingsSnapshot.other(key, newValue));
+			}
 			return item.getType() == String.class ? SettingsSnapshot.text(key, newValue) : newValue;
 		}
-		return null;
+		return scrub(SettingsSnapshot.other(key, newValue));
 	}
 
 	// ---- Frames per second ----
@@ -1853,6 +2079,617 @@ public class BlackBoxPlugin extends Plugin
 			}
 		}
 		return new Retention.Session(dir.getFileName(), newest, bytes);
+	}
+
+	// ---- Format 9: the cheap batch from the Hub sweep (research/hub-hard-bugs-2026-10-21.md) ----
+
+	/** RuneLite's own config group. */
+	private static final String RUNELITE_GROUP = "runelite";
+
+	/**
+	 * A group's values outside its visible settings: hidden items and keys no item declares, where plugins keep
+	 * their own state. Secret items stay out; the rest goes through {@link SettingsSnapshot#other}, and a key
+	 * holding the RuneScape profile id has the id hashed. Client thread.
+	 */
+	private JsonObject otherValues(String group, ConfigDescriptor descriptor)
+	{
+		Set<String> skip = new HashSet<>();
+		if (descriptor != null)
+		{
+			for (ConfigItemDescriptor item : descriptor.getItems())
+			{
+				if (!item.getItem().hidden() || item.getItem().secret())
+				{
+					skip.add(item.key());
+				}
+			}
+		}
+		JsonObject other = new JsonObject();
+		for (String whole : configManager.getConfigurationKeys(group + "."))
+		{
+			String key = whole.substring(group.length() + 1);
+			if (skip.contains(key))
+			{
+				continue;
+			}
+			String stored = configManager.getConfiguration(group, key);
+			if (stored != null)
+			{
+				other.addProperty(keyFor(descriptor, group, key), scrub(SettingsSnapshot.other(key, stored)));
+			}
+		}
+		return other;
+	}
+
+	/**
+	 * A config key as a recording may name it. A key the plugin declares, and any key of RuneLite's own group (overlay
+	 * and plugin names), as it is; a key no item declares is the plugin's own and can hold a name (Friend Notes keeps
+	 * {@code note_<friend>}), so it is written as its length and hash. A RuneScape profile id in a key is hashed.
+	 */
+	private static String keyFor(ConfigDescriptor descriptor, String group, String key)
+	{
+		if (RUNELITE_GROUP.equals(group) || BlackBoxConfig.GROUP.equals(group))
+		{
+			return Hashes.profileKey(key);
+		}
+		if (descriptor != null)
+		{
+			for (ConfigItemDescriptor item : descriptor.getItems())
+			{
+				if (key.equals(item.key()))
+				{
+					return Hashes.profileKey(key);
+				}
+			}
+		}
+		return SettingsSnapshot.hashed(key);
+	}
+
+	/** The RuneScape profile in use, hashed (it is derived from the account), and why the line was written. */
+	private void writeProfile(SessionLog target, long now, String why)
+	{
+		JsonObject o = target.line("profile", client.getTickCount(), now);
+		o.addProperty("rsProfile", Hashes.short12(configManager.getRSProfileKey()));
+		if (why != null)
+		{
+			o.addProperty("why", why);
+		}
+		target.add(o);
+	}
+
+	@Subscribe
+	public void onProfileChanged(ProfileChanged event)
+	{
+		long now = System.currentTimeMillis();
+		clientThread.invoke(() ->
+		{
+			rebuildGroups();
+			if (session != null)
+			{
+				// Every setting may have changed with the profile: a fresh snapshot after the line.
+				writeProfile(session, now, "settings profile");
+				writePlugins(session, now);
+			}
+		});
+	}
+
+	@Subscribe
+	public void onRuneScapeProfileChanged(RuneScapeProfileChanged event)
+	{
+		long now = System.currentTimeMillis();
+		clientThread.invoke(() ->
+		{
+			if (session != null)
+			{
+				writeProfile(session, now, "account profile");
+			}
+		});
+	}
+
+	/** The eight right-click options on players, with their priority and menu type. Client thread. */
+	private void writePlayerOptions(SessionLog target, long now)
+	{
+		String[] options = client.getPlayerOptions();
+		boolean[] priorities = client.getPlayerOptionsPriorities();
+		int[] types = client.getPlayerMenuTypes();
+		if (options == null)
+		{
+			return;
+		}
+		JsonArray list = new JsonArray();
+		for (int i = 0; i < options.length; i++)
+		{
+			JsonArray one = new JsonArray();
+			one.add(options[i] == null ? "" : scrub(options[i]));
+			one.add(priorities != null && i < priorities.length && priorities[i]);
+			one.add(types != null && i < types.length ? types[i] : -1);
+			list.add(one);
+		}
+		JsonObject o = target.line("playerOptions", client.getTickCount(), now);
+		o.add("options", list);
+		target.add(o);
+	}
+
+	@Subscribe
+	public void onPlayerMenuOptionsChanged(PlayerMenuOptionsChanged event)
+	{
+		if (session != null)
+		{
+			writePlayerOptions(session, System.currentTimeMillis());
+		}
+	}
+
+	@Subscribe
+	public void onBeforeRender(BeforeRender event)
+	{
+		frameClock.frame(System.nanoTime());
+	}
+
+	@Subscribe
+	public void onMenuEntryAdded(MenuEntryAdded event)
+	{
+		menuAdds++;
+	}
+
+	/** How long work posted now waits on the Swing thread and on the client thread; read on the next tick. */
+	private void probe()
+	{
+		long posted = System.nanoTime();
+		if (!edtWaiting)
+		{
+			// One probe at a time on the Swing thread, so a freeze shows as one growing wait, not a queue of them.
+			edtWaiting = true;
+			edtPostedAt = posted;
+			SwingUtilities.invokeLater(() ->
+			{
+				edtWaitMs = msSince(posted);
+				edtWaiting = false;
+			});
+		}
+		clientThread.invokeLater(() ->
+		{
+			clientWaitMs = msSince(posted);
+		});
+	}
+
+	private static double msSince(long nanos)
+	{
+		return Math.round((System.nanoTime() - nanos) / 100_000.0) / 10.0;
+	}
+
+	@Subscribe(priority = FIRST)
+	public void onMenuOpenedFirst(MenuOpened event)
+	{
+		menuBefore = session == null || pinPause ? null : menu(event.getMenuEntries());
+	}
+
+	/**
+	 * The menu as the player saw it, after every other plugin's handler (LAST), and the menu the game opened with
+	 * when a plugin changed it. Never while the bank PIN keypad shows. Shift is read, not listened for.
+	 */
+	@Subscribe(priority = LAST)
+	public void onMenuOpened(MenuOpened event)
+	{
+		if (session == null || pinPause)
+		{
+			menuBefore = null;
+			return;
+		}
+		JsonArray shown = menu(client.getMenu().getMenuEntries());
+		JsonObject o = line("menu");
+		o.add("entries", shown);
+		o.addProperty("shift", client.isKeyPressed(KeyCode.KC_SHIFT));
+		if (menuBefore != null && !menuBefore.equals(shown))
+		{
+			o.add("before", menuBefore);
+		}
+		menuBefore = null;
+		session.add(o);
+	}
+
+	/** Menu entries in the order the client holds them; a target that may name a player is left empty. */
+	private JsonArray menu(MenuEntry[] entries)
+	{
+		JsonArray list = new JsonArray();
+		if (entries == null)
+		{
+			return list;
+		}
+		for (MenuEntry entry : entries)
+		{
+			JsonObject one = new JsonObject();
+			one.addProperty("option", entry.getOption() == null ? "" : scrub(entry.getOption()));
+			boolean keep = entry.getPlayer() == null
+				&& (entry.getNpc() != null || Privacy.keepsTarget(entry.getType(), entry.getItemId()));
+			one.addProperty("target", entry.getTarget() == null || !keep ? "" : scrub(Text.removeTags(entry.getTarget())));
+			one.addProperty("type", entry.getType() == null ? "" : entry.getType().name());
+			one.addProperty("id", entry.getIdentifier());
+			one.addProperty("itemId", entry.getItemId());
+			one.addProperty("param0", entry.getParam0());
+			one.addProperty("param1", entry.getParam1());
+			if (entry.isDeprioritized())
+			{
+				one.addProperty("deprioritized", true);
+			}
+			Menu sub = entry.getSubMenu();
+			if (sub != null && sub.getMenuEntries() != null)
+			{
+				one.addProperty("submenu", sub.getMenuEntries().length);
+			}
+			list.add(one);
+		}
+		return list;
+	}
+
+	/** The hint arrow, written when it changes. The point is raw: after a clear the client leaves (0,0,0). */
+	private void hintArrow()
+	{
+		JsonObject fields = new JsonObject();
+		fields.addProperty("has", client.hasHintArrow());
+		fields.addProperty("type", client.getHintArrowType());
+		NPC npc = client.getHintArrowNpc();
+		if (npc != null)
+		{
+			fields.addProperty("npc", npc.getId());
+			fields.addProperty("index", npc.getIndex());
+		}
+		point(fields, "", client.getHintArrowPoint());
+		if (client.getHintArrowPlayer() != null)
+		{
+			// That it points at a player, never who.
+			fields.addProperty("player", true);
+		}
+		String seen = fields.toString();
+		if (!seen.equals(hintSeen))
+		{
+			hintSeen = seen;
+			session.add(with(line("hint"), fields));
+		}
+	}
+
+	/** Every registered overlay in render order, written when the set or its placement changes. */
+	private void overlays()
+	{
+		JsonArray list = new JsonArray();
+		StringBuilder seen = new StringBuilder();
+		// OverlayManager has no public list; anyMatch visits every overlay when the test never matches.
+		overlayManager.anyMatch(overlay ->
+		{
+			JsonObject one = new JsonObject();
+			one.addProperty("name", overlay.getName());
+			one.addProperty("plugin", overlay.getPlugin() == null ? null : overlay.getPlugin().getName());
+			one.addProperty("layer", overlay.getLayer() == null ? null : overlay.getLayer().name());
+			one.addProperty("position", overlay.getPosition() == null ? null : overlay.getPosition().name());
+			one.addProperty("preferred", overlay.getPreferredPosition() == null ? null : overlay.getPreferredPosition().name());
+			if (overlay.getPreferredLocation() != null)
+			{
+				one.addProperty("at", overlay.getPreferredLocation().x + "," + overlay.getPreferredLocation().y);
+			}
+			one.addProperty("priority", overlay.getPriority());
+			one.addProperty("movable", overlay.isMovable());
+			seen.append(one).append('\n');
+			if (overlay.getBounds() != null)
+			{
+				Rectangle b = overlay.getBounds();
+				one.addProperty("bounds", b.x + "," + b.y + "," + b.width + "," + b.height);
+			}
+			list.add(one);
+			return false;
+		});
+		String now = seen.toString();
+		if (!now.equals(overlaysSeen))
+		{
+			overlaysSeen = now;
+			JsonObject o = line("overlays");
+			o.add("overlays", list);
+			session.add(o);
+		}
+	}
+
+	/** The infoboxes on screen, written when one comes or goes, with their text at that moment. */
+	private void infoBoxes()
+	{
+		List<InfoBox> boxes = infoBoxManager.getInfoBoxes();
+		StringBuilder seen = new StringBuilder();
+		for (InfoBox box : boxes)
+		{
+			seen.append(box.getName()).append('\n');
+		}
+		String now = seen.toString();
+		if (!now.equals(infoBoxesSeen))
+		{
+			infoBoxesSeen = now;
+			JsonArray list = new JsonArray();
+			for (InfoBox box : boxes)
+			{
+				JsonObject one = new JsonObject();
+				one.addProperty("name", box.getName());
+				String text;
+				try
+				{
+					// Each plugin writes its own getText; one that throws must not stop the rest of the tick.
+					text = scrub(box.getText());
+				}
+				catch (RuntimeException e)
+				{
+					text = "<error>";
+				}
+				one.addProperty("text", text);
+				list.add(one);
+			}
+			JsonObject o = line("infoboxes");
+			o.add("infoboxes", list);
+			session.add(o);
+		}
+	}
+
+	/** Once per recording, every varp that is not 0: the game settings that never change while it runs. */
+	private void varps()
+	{
+		if (varpsDone || pinPause)
+		{
+			return;
+		}
+		int[] values = client.getVarps();
+		if (values == null)
+		{
+			return;
+		}
+		JsonObject set = new JsonObject();
+		for (int i = 0; i < values.length; i++)
+		{
+			if (values[i] != 0)
+			{
+				set.addProperty(String.valueOf(i), values[i]);
+			}
+		}
+		JsonObject o = line("varps");
+		o.add("values", set);
+		session.add(o);
+		varpsDone = true;
+	}
+
+	@Subscribe
+	public void onWorldViewLoaded(WorldViewLoaded event)
+	{
+		WorldView view = event.getWorldView();
+		if (session == null || view == null)
+		{
+			return;
+		}
+		JsonObject o = line("scene");
+		o.addProperty("wv", view.getId());
+		o.addProperty("top", view.isTopLevel());
+		o.addProperty("baseX", view.getBaseX());
+		o.addProperty("baseY", view.getBaseY());
+		o.addProperty("plane", view.getPlane());
+		o.addProperty("instance", view.isInstance());
+		int[][][] chunks = view.isInstance() ? view.getInstanceTemplateChunks() : null;
+		if (chunks != null)
+		{
+			// Only the chunks in use: [plane, x, y, the template chunk as the client packs it].
+			JsonArray used = new JsonArray();
+			for (int z = 0; z < chunks.length; z++)
+			{
+				for (int x = 0; x < chunks[z].length; x++)
+				{
+					for (int y = 0; y < chunks[z][x].length; y++)
+					{
+						if (chunks[z][x][y] != -1)
+						{
+							JsonArray one = new JsonArray();
+							one.add(z);
+							one.add(x);
+							one.add(y);
+							one.add(chunks[z][x][y]);
+							used.add(one);
+						}
+					}
+				}
+			}
+			o.add("chunks", used);
+		}
+		session.add(o);
+	}
+
+	@Subscribe
+	public void onFocusChanged(FocusChanged event)
+	{
+		focused = event.isFocused();
+		// Possibly the Swing thread: read the session once.
+		SessionLog now = session;
+		if (now != null)
+		{
+			JsonObject o = now.line("window", client.getTickCount(), System.currentTimeMillis());
+			o.addProperty("focus", event.isFocused());
+			now.add(o);
+		}
+	}
+
+	@Subscribe
+	public void onCanvasSizeChanged(CanvasSizeChanged event)
+	{
+		if (session != null)
+		{
+			JsonObject o = line("window");
+			o.addProperty("canvas", client.getCanvasWidth() + "x" + client.getCanvasHeight());
+			session.add(o);
+		}
+	}
+
+	@Subscribe
+	public void onResizeableChanged(ResizeableChanged event)
+	{
+		if (session != null)
+		{
+			JsonObject o = line("window");
+			o.addProperty("resizable", event.isResized());
+			session.add(o);
+		}
+	}
+
+	@Subscribe
+	public void onPartyChanged(PartyChanged event)
+	{
+		// In a party or not; never its id or passphrase.
+		boolean in = event.getPartyId() != null;
+		clientThread.invoke(() ->
+		{
+			partyMembers.clear();
+			if (session != null)
+			{
+				JsonObject o = line("party");
+				o.addProperty("in", in);
+				session.add(o);
+			}
+		});
+	}
+
+	@Subscribe
+	public void onUserJoin(UserJoin event)
+	{
+		partyMember("partyJoin", event.getMemberId());
+	}
+
+	@Subscribe
+	public void onUserPart(UserPart event)
+	{
+		partyMember("partyLeave", event.getMemberId());
+	}
+
+	/** A party member as a number that holds for this recording, never their id or name. */
+	private void partyMember(String kind, long memberId)
+	{
+		clientThread.invoke(() ->
+		{
+			if (session == null)
+			{
+				return;
+			}
+			Integer number = partyMembers.get(memberId);
+			if (number == null)
+			{
+				number = partyMembers.size() + 1;
+				partyMembers.put(memberId, number);
+			}
+			JsonObject o = line(kind);
+			o.addProperty("member", number);
+			o.addProperty("size", partyService.getMembers().size());
+			session.add(o);
+		});
+	}
+
+	@Subscribe
+	public void onItemSpawned(ItemSpawned event)
+	{
+		groundItem("itemAdd", event.getItem(), event.getTile());
+	}
+
+	@Subscribe
+	public void onItemDespawned(ItemDespawned event)
+	{
+		groundItem("itemGone", event.getItem(), event.getTile());
+	}
+
+	/** An item on the ground and whose it is, as a kind: the player's, another's, the group's or nobody's. */
+	private void groundItem(String kind, TileItem item, Tile tile)
+	{
+		if (session == null || item == null)
+		{
+			return;
+		}
+		JsonObject o = line(kind);
+		o.addProperty("id", item.getId());
+		o.addProperty("qty", item.getQuantity());
+		o.addProperty("own", item.getOwnership());
+		point(o, "", tile == null ? null : tile.getWorldLocation());
+		session.add(o);
+	}
+
+	@Subscribe
+	public void onLootReceived(LootReceived event)
+	{
+		if (session == null)
+		{
+			return;
+		}
+		JsonObject o = line("loot");
+		o.addProperty("from", "lootTracker");
+		String type = event.getType() == null ? "" : event.getType().name();
+		o.addProperty("type", type);
+		// Loot from a player names them; the type says it was one.
+		o.addProperty("name", "PLAYER".equals(type) ? "" : scrub(event.getName()));
+		o.addProperty("combat", event.getCombatLevel());
+		o.addProperty("amount", event.getAmount());
+		o.add("items", stacks(event.getItems()));
+		session.add(o);
+	}
+
+	@Subscribe
+	public void onNpcLootReceived(NpcLootReceived event)
+	{
+		if (session == null || event.getNpc() == null)
+		{
+			return;
+		}
+		JsonObject o = line("loot");
+		o.addProperty("from", "npc");
+		o.addProperty("npc", event.getNpc().getId());
+		o.addProperty("name", scrub(event.getNpc().getName()));
+		o.add("items", stacks(event.getItems()));
+		session.add(o);
+	}
+
+	@Subscribe
+	public void onServerNpcLoot(ServerNpcLoot event)
+	{
+		if (session == null || event.getComposition() == null)
+		{
+			return;
+		}
+		JsonObject o = line("loot");
+		o.addProperty("from", "server");
+		o.addProperty("npc", event.getComposition().getId());
+		o.addProperty("name", scrub(event.getComposition().getName()));
+		o.add("items", stacks(event.getItems()));
+		session.add(o);
+	}
+
+	@Subscribe
+	public void onPlayerLootReceived(PlayerLootReceived event)
+	{
+		if (session == null)
+		{
+			return;
+		}
+		// The items only: the player is never named.
+		JsonObject o = line("loot");
+		o.addProperty("from", "player");
+		o.add("items", stacks(event.getItems()));
+		session.add(o);
+	}
+
+	private static JsonArray stacks(Collection<ItemStack> items)
+	{
+		JsonArray list = new JsonArray();
+		if (items != null)
+		{
+			for (ItemStack stack : items)
+			{
+				JsonArray one = new JsonArray();
+				one.add(stack.getId());
+				one.add(stack.getQuantity());
+				list.add(one);
+			}
+		}
+		return list;
+	}
+
+	/** Copies fields onto a line. */
+	private static JsonObject with(JsonObject line, JsonObject fields)
+	{
+		fields.entrySet().forEach(e -> line.add(e.getKey(), e.getValue()));
+		return line;
 	}
 
 	// ---- Helpers ----

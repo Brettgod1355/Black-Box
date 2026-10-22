@@ -83,4 +83,18 @@ public class PrivacyTest
 		}
 		assertFalse(Privacy.mayKeepFrame(null));
 	}
+
+	@Test
+	public void menuTargetsOnPlayersAndOnInterfacesWithoutAnItemAreLeftOut()
+	{
+		assertFalse(Privacy.keepsTarget(net.runelite.api.MenuAction.PLAYER_FIRST_OPTION, -1));
+		assertFalse(Privacy.keepsTarget(net.runelite.api.MenuAction.CC_OP, -1));
+		assertTrue(Privacy.keepsTarget(net.runelite.api.MenuAction.CC_OP, 995));
+		assertTrue(Privacy.keepsTarget(net.runelite.api.MenuAction.NPC_FIRST_OPTION, -1));
+		assertTrue(Privacy.keepsTarget(net.runelite.api.MenuAction.GAME_OBJECT_FIRST_OPTION, -1));
+		assertFalse(Privacy.keepsTarget(null, 995));
+		// A plugin's own entry (Friend Notes' "Add Note" on a friend) loses its target unless it is about an item.
+		assertFalse(Privacy.keepsTarget(net.runelite.api.MenuAction.RUNELITE, -1));
+		assertTrue(Privacy.keepsTarget(net.runelite.api.MenuAction.RUNELITE, 995));
+	}
 }

@@ -131,12 +131,20 @@ animations (set alight, frozen). Other players are left out of all of these, as 
 While recording, Black Box writes a `plugins` line naming every installed plugin with on or off and a `settings`
 line per plugin with every one of its current settings, free text included (highlight lists, block lists, names
 you typed into a plugin are what a developer needs to see). Withheld, always: a setting the plugin marks secret,
-a hidden one, and anything that is a webhook, a key, a password or a token, by its key name or by what it looks
-like, written as `<secret>` or `<withheld>`. When a setting changes, the `setting` line carries the new value.
+and anything that is a webhook, a key, a password or a token, by its key name or by what it looks like, written as
+`<secret>` or `<withheld>`. What a plugin keeps outside its visible settings (hidden items and keys no item
+declares, where plugins store their own state) is under `other`: a plain number, flag, enum, point or size as it
+is, and anything else, the key too when no item declares it, as its length and a short hash, since that is where
+the saved login name, a party passphrase and friends' names live. A last `settings` line does the same for
+RuneLite's own settings (overlay positions, notification defaults). When a setting changes, the `setting` line carries the new value.
+A `profile` line says which RuneScape profile is in use, as a hash, and a settings-profile switch writes the
+plugins and settings again.
 
 The first line of a recording says which client this was: Black Box's own version, RuneLite's version and commit,
 the launcher and Plugin Hub versions, Java, the operating system, the window size and mode, and the wall-clock
-start time; the `plugins` line carries each Hub plugin's version. Nothing in that says who you are.
+start time, plus the game build, the GPU plugin, the locale, the look and feel, the Java2D switches that are set
+and each screen's size and scaling. The `plugins` line carries each Hub plugin's version and build hash, whether
+each plugin really started, and the Hub plugins that did not load at all. Nothing in that says who you are.
 
 Beside the events, `client-log.txt` holds the client's own log for the same time: every INFO, WARN and ERROR line
 RuneLite and its plugins logged, in the shape of RuneLite's `client.log`, with stack traces cut short. Black Box
@@ -157,6 +165,16 @@ changed again. A mute that works for one player and not the next then reads as: 
 written back a tick later, and the `plugins` line says which plugin only the affected player has on. Nothing here
 reads anything but the client's own objects.
 
+## What the plugins put on screen
+
+Many reports are about something drawn, or a menu entry that is there for one player and not another. A `menu`
+line holds each right-click menu as the player saw it, after every plugin had its turn, with `before`, the menu as
+the game built it, when a plugin changed it. An `overlays` line lists every registered overlay with its plugin,
+layer, position and where it was last drawn, and an `infoboxes` line every infobox and its text, each written again
+when the set changes. `hint` follows the hint arrow, `playerOptions` the right-click options on players (a
+plugin's own option among them), and `window` focus and canvas changes. A `notify` line says how the notification
+was set up to reach the player and whether the window had focus. Ground items, loot reports and RuneLite party
+joins and leaves have their own lines; party members are numbers, never names.
 
 ## Frames per second
 
@@ -168,7 +186,10 @@ from one minute to everything, every marked moment listed on the right (click on
 any past recording in the Black Box folder, with a slider to scrub through it. That is how to see what a plugin or a
 setting does to the frame rate: toggle it while watching, or record a session and read it back later.
 
-In a recording, every `tick` line carries `fps`, and `plugin` and `setting` lines say what was toggled when.
+In a recording, every `tick` line carries `fps`, and `plugin` and `setting` lines say what was toggled when. A
+`tick` line also has `frames` and `longestFrameMs`, the frames drawn since the last tick and the longest gap
+between two, which catches a stutter the average hides, and `edtWaitMs` and `clientWaitMs`, how long work posted at
+the last tick waited on the Swing thread and on the client thread.
 
 ## Settings
 
@@ -202,9 +223,9 @@ per line, in the order things happened. Every line has `e` (what happened), `tic
 
 | `e` | Fields |
 |---|---|
-| `session` | `format`, `blackBox`, `runelite`, `world`, `started` |
-| `tick` | `wv` (the world view you stand in), `x`, `y`, `plane`, `anim`; aboard a boat also `topX`/`topY`/`topPlane` (you in the main world), `boatX`/`boatY`/`boatPlane`, `boatConfig`, `boatOwner` |
-| `chat` | `type`, `text` |
+| `session` | `format`, `blackBox`, `runelite`, `world`, `started`; from format 9 also `revision`, `gpu`, `locale`, `lookAndFeel`, `toolkit`, `java2d`, `screens` |
+| `tick` | `wv` (the world view you stand in), `x`, `y`, `plane`, `anim`; aboard a boat also `topX`/`topY`/`topPlane` (you in the main world), `boatX`/`boatY`/`boatPlane`, `boatConfig`, `boatOwner`; from format 9 also `cycle`, `idleMouse`, `idleKeys`, `energy`, `weight`, `camYaw`, `facing`, `instance`, `frames`, `longestFrameMs`, `menuAdds`, `edtWaitMs`, `clientWaitMs` |
+| `chat` | `type`, `text`; from format 9 also `shown` when what the chat box shows differs, and friend notices with `text` withheld |
 | `npcSay` | `npc`, `index`, `name`, `text`, `wv`; from format 7 also `shown`, what the NPC showed once every other plugin had handled the event, when that is not `text` |
 | `npcShown` | from format 7: `npc`, `index`, `name`, `text`, `cycle`, `wv`, what the NPC really shows a client tick later, after the game tick and the other plugins' tick handlers, when it is not what the last `npcSay` left |
 | `items` | `container`, `items` as `[id, quantity]` pairs, one per slot |
@@ -217,8 +238,19 @@ per line, in the order things happened. Every line has `e` (what happened), `tic
 | `hit` | `on` (`<you>`) or `npc` and `index`; `amount`, `type` |
 | `sound` | `id`, `delay`; `from` (`<you>`) or `npc` and `index` when the game says who caused it. Only while the game's sound effects are on (the client drops them otherwise), and none while the bank PIN keypad shows. Format 2 and later |
 | `open`, `close` | `interface` |
-| `click` | `option`, `target`, `action`, `id`, `itemId`, `param0`, `param1` |
-| `notify` | `text` |
+| `click` | `option`, `target`, `action`, `id`, `itemId`, `param0`, `param1`; from format 9 also `rawOption` (the option with a plugin's colors) |
+| `menu` | from format 9: `entries` (each `option`, `target`, `type`, `id`, `itemId`, `param0`, `param1`), `before` when a plugin changed the menu, `shift`. None while the bank PIN keypad shows |
+| `hint` | from format 9: `has`, `type`, then `npc`/`index`, `x`/`y`/`plane`, or `player` |
+| `overlays`, `infoboxes` | from format 9: every overlay (`name`, `plugin`, `layer`, `position`, `preferred`, `at`, `priority`, `movable`, `bounds`) or infobox (`name`, `text`), when the set changes |
+| `varps` | from format 9: `values`, every varp that is not 0, once per recording |
+| `scene` | from format 9: `wv`, `top`, `baseX`, `baseY`, `plane`, `instance`, `chunks` |
+| `itemAdd`, `itemGone` | from format 9: `id`, `qty`, `own`, `x`, `y`, `plane` |
+| `loot` | from format 9: `from`, `items`, and by report `type`, `name`, `combat`, `amount`, `npc` |
+| `party`, `partyJoin`, `partyLeave` | from format 9: `in`; `member` (a number), `size` |
+| `notify` | `text`; from format 9 also `how`, `focused` |
+| `window` | from format 9: `focus`, `canvas` or `resizable` |
+| `profile` | from format 9: `rsProfile` (a hash), `why` |
+| `playerOptions` | from format 9: `options` as `[text, priority, menu type]` |
 | `pluginMessage` | `namespace`, `name` |
 | `state` | `state` |
 | `shot` | `file`, `reason` (`timer`, `notify` or `mark`) |

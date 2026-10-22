@@ -53,7 +53,7 @@ public class FormatDocTest
 	{
 		Set<String> kinds = new TreeSet<>();
 		Pattern direct = Pattern.compile("line\\(\"([a-zA-Z]+)\"");
-		Pattern helper = Pattern.compile("(?:object|npc|worldEntity|pinLine)\\((?:[a-z]+, )?\"([a-zA-Z]+)\"");
+		Pattern helper = Pattern.compile("(?:object|npc|worldEntity|pinLine|groundItem|partyMember)\\((?:[a-z]+, )?\"([a-zA-Z]+)\"");
 		Pattern ternary = Pattern.compile("\\b[a-z]+ \\? \"([a-zA-Z]+)\" : \"([a-zA-Z]+)\"");
 		try (Stream<Path> files = Files.walk(Paths.get("src", "main", "java")))
 		{

@@ -32,9 +32,12 @@ final class SessionLog
 	 * launcher, Plugin Hub, Java, OS, canvas, resizable, stretched); Hub plugins carry {@code version}. 7: {@code shown} on
 	 * {@code npcSay} (what the other subscribers left) and {@code npcShown} (what the NPC shows a client tick later, once
 	 * the game tick and the plugins' tick handlers that follow the event have run, when that differs). 8: no
-	 * {@code watch} line; every recording covers every plugin and nothing is picked.
+	 * {@code watch} line; every recording covers every plugin and nothing is picked. 9: the cheap batch from the Hub
+	 * sweep (FORMAT.md, Versions): more on the session, tick, plugins, settings, setting, click, chat and notify
+	 * lines; profile, playerOptions, window, menu, hint, overlays, infoboxes, varps, scene, itemAdd/itemGone, loot
+	 * and party lines.
 	 */
-	static final int FORMAT = 8;
+	static final int FORMAT = 9;
 	static final String EVENTS_FILE = "events.jsonl";
 	static final String SHOTS_DIR = "shots";
 

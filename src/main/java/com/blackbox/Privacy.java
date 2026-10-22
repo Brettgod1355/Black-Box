@@ -114,4 +114,21 @@ final class Privacy
 	{
 		return action != null && action.name().toUpperCase(Locale.ROOT).contains("PLAYER");
 	}
+
+	/**
+	 * Whether a menu entry's target may be written. Never for an entry on a player; and for an entry on an interface
+	 * (chat box, friends and clan lists) only when it is about an item, since there the target is often a player's
+	 * name: right-clicking a chat line or a friend names them.
+	 */
+	static boolean keepsTarget(MenuAction action, int itemId)
+	{
+		if (action == null || targetsPlayer(action))
+		{
+			return false;
+		}
+		String name = action.name();
+		// RUNELITE entries are plugins' own, often on a friend or a chat line (Friend Notes' "Add Note").
+		boolean onInterface = name.startsWith("CC_OP") || name.startsWith("WIDGET_") || name.startsWith("RUNELITE");
+		return !onInterface || itemId > 0;
+	}
 }

@@ -62,6 +62,38 @@ final class SettingsSnapshot
 		return values;
 	}
 
+	/**
+	 * A value whose shape cannot hold a name or an account: a short number, true or false, an enum constant, a point
+	 * ({@code 12:34}) or a size ({@code 765x503}). Ten digits at most, since an account hash is a longer number.
+	 */
+	private static final Pattern PLAIN_VALUE = Pattern.compile(
+		"-?\\d{1,10}(\\.\\d+)?|true|false|[A-Z][A-Z0-9_]*|-?\\d{1,6}:-?\\d{1,6}|\\d{1,6}x\\d{1,6}");
+
+	/**
+	 * A value the plugin keeps outside its visible settings (a hidden item, or a key no item declares, format 9).
+	 * These hold the saved login name, a party passphrase, recent friends chats, so only a plain number, flag, enum,
+	 * point or size is written as it is; anything else is {@code <N chars, sha256 abc123def456>}, which still shows
+	 * that it changed and compares between recordings without saying what it is.
+	 */
+	static String other(String key, String stored)
+	{
+		if (RISKY_KEY.matcher(key).find())
+		{
+			return WITHHELD;
+		}
+		if (PLAIN_VALUE.matcher(stored).matches())
+		{
+			return stored;
+		}
+		return hashed(stored);
+	}
+
+	/** {@code <N chars, sha256 abc123def456>}: the length and a short hash, never the text. */
+	static String hashed(String text)
+	{
+		return "<" + text.length() + " chars, sha256 " + Hashes.short12(text) + ">";
+	}
+
 	/** A free-text value, or {@code <withheld>} when it is a webhook, a key or a token. Ordinary links and names stay. */
 	static String text(String key, String stored)
 	{
