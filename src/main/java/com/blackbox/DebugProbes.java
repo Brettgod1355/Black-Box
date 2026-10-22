@@ -177,6 +177,20 @@ class DebugProbes
 	 * Who an actor is, as the rest of a recording says it: {@code <you>}, an NPC's id and index, or {@code player}
 	 * for anyone else (never a name).
 	 */
+	/** A short key for whom an actor is interacting with, to see when it changes. */
+	private String target(Actor actor)
+	{
+		if (actor == null)
+		{
+			return "none";
+		}
+		if (actor == client.getLocalPlayer())
+		{
+			return "you";
+		}
+		return actor instanceof NPC ? "npc " + ((NPC) actor).getIndex() : "player " + actor.getName();
+	}
+
 	private void actor(JsonObject o, String prefix, Actor actor)
 	{
 		if (actor == null)
@@ -254,6 +268,8 @@ class DebugProbes
 	class NpcDetails implements Probe
 	{
 		private final Map<Integer, String> health = new HashMap<>();
+		/** What each NPC was last written as interacting with, by index: the game repeats "nothing" every tick. */
+		private final Map<Integer, String> fighting = new HashMap<>();
 		private boolean described;
 
 		@Subscribe
@@ -276,6 +292,12 @@ class DebugProbes
 				return;
 			}
 			NPC npc = (NPC) event.getSource();
+			// Crewmates on a hook report "interacting with nothing" every tick (Original RS2, 2026-10-22: 20,000
+			// npcFight lines in 25 minutes, all "none"); only a change is news.
+			if (target(event.getTarget()).equals(fighting.put(npc.getIndex(), target(event.getTarget()))))
+			{
+				return;
+			}
 			JsonObject o = sink.line("npcFight");
 			o.addProperty("npc", npc.getId());
 			o.addProperty("index", npc.getIndex());
@@ -380,6 +402,7 @@ class DebugProbes
 		public void reset()
 		{
 			health.clear();
+			fighting.clear();
 			described = false;
 		}
 	}
