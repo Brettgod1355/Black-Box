@@ -31,9 +31,10 @@ final class SessionLog
 	 * the session line carries {@code startedAt} (wall clock, milliseconds) and the environment (client commit,
 	 * launcher, Plugin Hub, Java, OS, canvas, resizable, stretched); Hub plugins carry {@code version}. 7: {@code shown} on
 	 * {@code npcSay} (what the other subscribers left) and {@code npcShown} (what the NPC shows a client tick later, once
-	 * the game tick and the plugins' tick handlers that follow the event have run, when that differs).
+	 * the game tick and the plugins' tick handlers that follow the event have run, when that differs). 8: no
+	 * {@code watch} line; every recording covers every plugin and nothing is picked.
 	 */
-	static final int FORMAT = 7;
+	static final int FORMAT = 8;
 	static final String EVENTS_FILE = "events.jsonl";
 	static final String SHOTS_DIR = "shots";
 

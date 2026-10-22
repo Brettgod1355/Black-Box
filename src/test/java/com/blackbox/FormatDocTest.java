@@ -27,6 +27,8 @@ public class FormatDocTest
 {
 	/** Kinds written by code outside this branch (the NPC positions branch), documented ahead of it. */
 	private static final Set<String> ELSEWHERE = new HashSet<>(Arrays.asList("npcMove"));
+	/** Kinds older formats wrote and this one no longer does, kept in FORMAT.md for reading old recordings. */
+	private static final Set<String> RETIRED = new HashSet<>(Arrays.asList("watch"));
 
 	@Test
 	public void everyLineKindIsDocumented() throws IOException
@@ -40,6 +42,7 @@ public class FormatDocTest
 		Set<String> stale = new TreeSet<>(documented);
 		stale.removeAll(written);
 		stale.removeAll(ELSEWHERE);
+		stale.removeAll(RETIRED);
 		assertEquals("sections in FORMAT.md for kinds the code never writes: " + stale, 0, stale.size());
 		String format = new String(Files.readAllBytes(Paths.get("FORMAT.md")), StandardCharsets.UTF_8);
 		assertTrue("FORMAT.md must name the current format: " + SessionLog.FORMAT, format.contains("This is format **" + SessionLog.FORMAT + "**"));

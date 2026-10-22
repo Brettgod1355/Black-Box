@@ -70,9 +70,8 @@ of minutes you choose, or all of today, as one zip to send to a developer; **Ope
 holds the recordings and the exports. **Mark**: press it the moment you see the problem. The time is saved at
 once and the Mark area becomes a small form: say what happened, as much or as little as you like, and press
 Save flag; Cancel drops it, and nothing is written until you save. Export afterwards. Then frames per
-second, the list of recordings with Zip, Open and Delete for each, and **Reporting on**: every plugin's settings
-are recorded anyway; name the plugin the problem is about, so the developer sees it and its setting changes show
-on the chart.
+second and the list of recordings with Zip, Open and Delete for each. There is nothing to pick: every recording
+holds every installed plugin and all of its settings.
 
 ### Sending an export to a developer
 
@@ -89,7 +88,7 @@ path is copied to your clipboard.
 ### Asking a player for a recording (for developers)
 
 Paste this into the issue: "Install Black Box from the Plugin Hub and open its sidebar (the black box icon).
-It records on its own. Add *<your plugin>* under Reporting on, make the problem happen, press Mark, say what you saw and
+It records on its own. Make the problem happen, press Mark, say what you saw and
 press Save flag, then press Export and pick the last 10 minutes, and attach the zip it names. It
 holds no chat from other players, no bank PIN and no pictures unless you turn those on; the README inside lists
 exactly what it holds."
@@ -159,17 +158,10 @@ written back a tick later, and the `plugins` line says which plugin only the aff
 reads anything but the client's own objects.
 
 
-## Reporting on
-
-Every plugin's settings are in every recording. Under **Reporting on**, name the plugin the problem is about:
-the recording says so in a `watch` line, and that plugin's setting changes show as markers on the
-frames-per-second chart. **Add a plugin** drops down a search box over everything installed (type part of a
-name to narrow it), and each named plugin is a row with its on/off dot and a cross to remove it.
-
 ## Frames per second
 
 Black Box keeps the client's frames per second from the moment it loads, recording or not, and marks the moments
-worth lining up against it: a plugin switched on or off, a setting changed (which one, never its value), a mark, a
+worth lining up against it: a plugin switched on or off, a setting changed (one a player can see in a plugin's panel; hidden ones are where plugins keep their own state), a mark, a
 notification, a login or logout. The **sidebar** (the chart icon) shows the current reading, the low, mean and high
 over the last 1, 5, 10 and 15 minutes (dimmed until the client has run that long), and a small chart of the last minute. **Click the chart** to open it in its own window: a larger chart, a time range
 from one minute to everything, every marked moment listed on the right (click one to jump to it), and the choice of

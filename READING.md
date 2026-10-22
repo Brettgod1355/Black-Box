@@ -7,7 +7,7 @@ A Black Box export is plain text. You need a text editor, or `grep`, or an AI as
 
 The first line of `events.jsonl` (`"e":"session"`): client version and commit, launcher, Java, operating
 system, window size and mode. The `plugins` line right after it: every installed plugin, on or off, with the
-Plugin Hub version. The `watch` line: the plugin the player says the problem is about.
+Plugin Hub version. (Formats 4 to 7 also had a `watch` line naming the plugin the player picked.)
 
     grep -m1 '"session"' events.jsonl
     grep -m1 '"plugins"' events.jsonl

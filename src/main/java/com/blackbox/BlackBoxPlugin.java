@@ -157,8 +157,6 @@ public class BlackBoxPlugin extends Plugin
 
 	/** Every plugin's config group, for the setting lines; client thread. */
 	private final Map<String, Plugin> groups = new HashMap<>();
-	/** The watched plugins' config groups: their setting changes become chart markers; client thread. */
-	private final Map<String, Plugin> watchedGroups = new HashMap<>();
 	/** A Mark pressed in the sidebar and not yet saved: its tick, its time and its picture; client thread. */
 	private int pendingMarkTick = -1;
 	private long pendingMarkAt;
@@ -171,7 +169,6 @@ public class BlackBoxPlugin extends Plugin
 	private final Set<Integer> collisionDone = new HashSet<>();
 	/** NPC indexes that are targeting the player right now, so the end of it gets a line too; client thread. */
 	private final Set<Integer> targetingMe = new HashSet<>();
-	private WatchPanel watchPanel;
 
 	/** Frames per second since the plugin started, recording or not: what the sidebar and the window show live. */
 	private final FpsSeries live = new FpsSeries("Live", FpsSeries.LIVE_CAPACITY);
@@ -233,11 +230,11 @@ public class BlackBoxPlugin extends Plugin
 		keyManager.registerKeyListener(markListener);
 		logTap.attach();
 		flushTask = executor.scheduleWithFixedDelay(this::flushQuietly, 1, 1, TimeUnit.SECONDS);
-		watchPanel = new WatchPanel(new Watching());
 		Office office = new Office();
 		RecorderSection recorder = new RecorderSection(office);
-		panel = new BlackBoxPanel(recorder, new FpsSection(live, this::openFpsWindow), new RecordingsSection(office, recorder), watchPanel);
-		clientThread.invoke(this::rebuildWatchedGroups);
+		panel = new BlackBoxPanel(recorder, new FpsSection(live, this::openFpsWindow), new RecordingsSection(office, recorder));
+		clientThread.invoke(this::rebuildGroups);
+		forgetReportingOn();
 		navButton = NavigationButton.builder()
 			.tooltip("Black Box")
 			.icon(ImageUtil.loadImageResource(getClass(), "sidebar.png"))
@@ -320,7 +317,7 @@ public class BlackBoxPlugin extends Plugin
 		{
 			pinLine(started, "pause", now);
 		}
-		writeWatch(started, now);
+		writePlugins(started, now);
 		Player me = client.getLocalPlayer();
 		logTap.setOwnName(me == null ? null : me.getName());
 		executor.execute(() ->
@@ -391,9 +388,10 @@ public class BlackBoxPlugin extends Plugin
 			Plugin plugin = groups.get(group);
 			// Every plugin's value, through the same withholding as a snapshot (secrets, webhooks and tokens never).
 			String value = plugin == null ? null : valueFor(plugin, key, newValue);
-			if (watchedGroups.containsKey(group) || BlackBoxConfig.GROUP.equals(group))
+			if ((plugin != null && shown(plugin, key)) || BlackBoxConfig.GROUP.equals(group))
 			{
-				// Chart markers only for the plugins being watched, so the chart is not buried under every toggle.
+				// Chart markers for settings a player can see and change; hidden ones are where plugins keep their own
+				// state, and would bury the chart.
 				live.note(now, "setting", group + "." + key + (value == null ? "" : " = " + value));
 			}
 			if (session != null)
@@ -1331,123 +1329,9 @@ public class BlackBoxPlugin extends Plugin
 		}
 	}
 
-	// ---- Watched plugins ----
+	// ---- Every plugin's settings ----
 
-	/** What the sidebar's "Reporting on" section (once "Watched plugins") reads and writes: Black Box's own configuration. Swing thread. */
-	private final class Watching implements WatchPanel.Model
-	{
-		@Override
-		public List<String> installed()
-		{
-			List<String> names = new ArrayList<>();
-			for (Plugin plugin : pluginManager.getPlugins())
-			{
-				if (plugin.getName() != null)
-				{
-					names.add(plugin.getName());
-				}
-			}
-			Collections.sort(names, String.CASE_INSENSITIVE_ORDER);
-			return names;
-		}
-
-		@Override
-		public List<String> watched()
-		{
-			return WatchList.decode(configManager.getConfiguration(BlackBoxConfig.GROUP, WatchList.WATCHED_KEY));
-		}
-
-		@Override
-		public void setWatched(List<String> names)
-		{
-			if (names.isEmpty())
-			{
-				configManager.unsetConfiguration(BlackBoxConfig.GROUP, WatchList.WATCHED_KEY);
-			}
-			else
-			{
-				configManager.setConfiguration(BlackBoxConfig.GROUP, WatchList.WATCHED_KEY, WatchList.encode(names));
-			}
-			clientThread.invoke(() ->
-			{
-				rebuildWatchedGroups();
-				if (session != null)
-				{
-					writeWatch(session, System.currentTimeMillis());
-				}
-			});
-		}
-
-		@Override
-		public boolean isOn(String name)
-		{
-			Plugin plugin = pluginByName(name);
-			return plugin != null && pluginManager.isPluginEnabled(plugin);
-		}
-
-		@Override
-		public List<String> sets()
-		{
-			String prefix = BlackBoxConfig.GROUP + "." + WatchList.SET_PREFIX;
-			List<String> names = new ArrayList<>();
-			for (String key : configManager.getConfigurationKeys(prefix))
-			{
-				if (key.startsWith(prefix))
-				{
-					names.add(key.substring(prefix.length()));
-				}
-			}
-			Collections.sort(names, String.CASE_INSENSITIVE_ORDER);
-			return names;
-		}
-
-		@Override
-		public List<String> loadSet(String name)
-		{
-			return WatchList.decode(configManager.getConfiguration(BlackBoxConfig.GROUP, WatchList.SET_PREFIX + name));
-		}
-
-		@Override
-		public void saveSet(String name, List<String> names)
-		{
-			configManager.setConfiguration(BlackBoxConfig.GROUP, WatchList.SET_PREFIX + name, WatchList.encode(names));
-		}
-
-		@Override
-		public void deleteSet(String name)
-		{
-			configManager.unsetConfiguration(BlackBoxConfig.GROUP, WatchList.SET_PREFIX + name);
-		}
-	}
-
-	private Plugin pluginByName(String name)
-	{
-		for (Plugin plugin : pluginManager.getPlugins())
-		{
-			if (name.equals(plugin.getName()))
-			{
-				return plugin;
-			}
-		}
-		return null;
-	}
-
-	/** The watched plugins in the stored order, those that are installed. Any thread. */
-	private List<Plugin> watchedPlugins()
-	{
-		List<Plugin> plugins = new ArrayList<>();
-		for (String name : WatchList.decode(configManager.getConfiguration(BlackBoxConfig.GROUP, WatchList.WATCHED_KEY)))
-		{
-			Plugin plugin = pluginByName(name);
-			if (plugin != null)
-			{
-				plugins.add(plugin);
-			}
-		}
-		return plugins;
-	}
-
-	/** A watched plugin's config descriptor, or null when it has no configuration. */
+	/** A plugin's config descriptor, or null when it has no configuration. */
 	private ConfigDescriptor descriptorOf(Plugin plugin)
 	{
 		Config proxy = pluginManager.getPluginConfigProxy(plugin);
@@ -1455,7 +1339,7 @@ public class BlackBoxPlugin extends Plugin
 	}
 
 	/** Client thread. */
-	private void rebuildWatchedGroups()
+	private void rebuildGroups()
 	{
 		groups.clear();
 		for (Plugin plugin : pluginManager.getPlugins())
@@ -1466,41 +1350,50 @@ public class BlackBoxPlugin extends Plugin
 				groups.put(descriptor.getGroup().value(), plugin);
 			}
 		}
-		watchedGroups.clear();
-		for (Plugin plugin : watchedPlugins())
+	}
+
+	/**
+	 * Clears what the sidebar's "Reporting on" section stored (the plugin list under {@code watched} and named sets
+	 * under {@code set.}): recordings cover every plugin and nothing is picked any more (owner, 2026-10-22).
+	 */
+	private void forgetReportingOn()
+	{
+		configManager.unsetConfiguration(BlackBoxConfig.GROUP, "watched");
+		String prefix = BlackBoxConfig.GROUP + ".set.";
+		for (String key : configManager.getConfigurationKeys(prefix))
 		{
-			ConfigDescriptor descriptor = descriptorOf(plugin);
-			if (descriptor != null)
+			if (key.startsWith(prefix))
 			{
-				watchedGroups.put(descriptor.getGroup().value(), plugin);
+				configManager.unsetConfiguration(BlackBoxConfig.GROUP, key.substring(BlackBoxConfig.GROUP.length() + 1));
 			}
 		}
 	}
 
-	/**
-	 * A {@code watch} line naming the watched plugins (the ones the player is reporting on), a {@code plugins} line
-	 * naming every installed plugin with on or off, then a {@code settings} line per plugin that has settings, with
-	 * every current value (secrets, webhooks and tokens withheld, see {@link SettingsSnapshot}). Client thread.
-	 */
-	private void writeWatch(SessionLog target, long now)
+	/** True when the key is a setting the player can see in the plugin's panel, not a hidden one. */
+	private boolean shown(Plugin plugin, String key)
 	{
-		List<Plugin> plugins = watchedPlugins();
-		JsonObject watch = target.line("watch", client.getTickCount(), now);
-		JsonArray list = new JsonArray();
-		for (Plugin plugin : plugins)
+		ConfigDescriptor descriptor = descriptorOf(plugin);
+		if (descriptor == null)
 		{
-			JsonObject one = new JsonObject();
-			one.addProperty("name", plugin.getName());
-			one.addProperty("on", pluginManager.isPluginEnabled(plugin));
-			String version = Environment.versionOf(plugin);
-			if (version != null)
-			{
-				one.addProperty("version", version);
-			}
-			list.add(one);
+			return false;
 		}
-		watch.add("plugins", list);
-		target.add(watch);
+		for (ConfigItemDescriptor item : descriptor.getItems())
+		{
+			if (key.equals(item.key()))
+			{
+				return !item.getItem().hidden();
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * A {@code plugins} line naming every installed plugin with on or off, then a {@code settings} line per plugin
+	 * that has settings, with every current value (secrets, webhooks and tokens withheld, see
+	 * {@link SettingsSnapshot}). Client thread.
+	 */
+	private void writePlugins(SessionLog target, long now)
+	{
 		List<Plugin> all = new ArrayList<>(pluginManager.getPlugins());
 		all.sort((a, b) -> String.CASE_INSENSITIVE_ORDER.compare(String.valueOf(a.getName()), String.valueOf(b.getName())));
 		JsonObject installed = target.line("plugins", client.getTickCount(), now);

@@ -9,7 +9,7 @@ Every line in `events.jsonl` has three fields: `e`, the kind of line; `tick`, th
 (the client counts about 1.67 a second; a login resets nothing, the count keeps rising); and `ms`, milliseconds
 since the recording began. A tool reads lines by `e` and ignores kinds it does not know.
 
-The first line's `format` says which version of this document the file follows. This is format **7**.
+The first line's `format` says which version of this document the file follows. This is format **8**.
 
 Privacy holds on every line: other players never appear, the player's own name is written as `<you>`, nothing
 is written while the bank PIN keypad shows except the `pause` and `resume` lines that bracket it.
@@ -53,12 +53,12 @@ A setting changed: `group` (the plugin's config group), `key`, `plugin` (the plu
 `value` (the new value, withheld as `<secret>` or `<withheld>` under the rules in `settings`).
 
 ### `plugins`
-Written at the start and whenever the "reporting on" list changes: `plugins`, every installed plugin as
+Written at the start (until format 7 also whenever the "reporting on" list changed): `plugins`, every installed plugin as
 `{name, on, version}` (`version` only for Plugin Hub plugins).
 
 ### `watch`
-The plugins the player is reporting on: `plugins` as `{name, on, version}`. Their setting changes are the
-markers on the frames-per-second chart.
+Formats 4 to 7 only: the plugins the player was reporting on, `plugins` as `{name, on, version}`. Gone from
+format 8, where every recording covers every plugin and nothing is picked.
 
 ### `settings`
 One per plugin that has settings, at the start: `plugin`, `group`, `values` (key to value, as the client stores
@@ -179,4 +179,4 @@ inventory id the exported events mention, with RuneLite's constant name; `?` whe
 `setting`. 5. NPC positions: tiles on `npcAdd`/`npcGone`, `npcMove`. 6. `boatDir`, `overlay`, `underlay` on
 `tick`; `collision`, `npcTarget`, `npcAnim`, `graphic`, `note`; `plugins`; every plugin's `settings`;
 `startedAt` and the environment on `session`; `version` on plugin lists; `text` on `mark`; `client-log.txt`.
-7. `shown` on `npcSay`; `npcShown`.
+7. `shown` on `npcSay`; `npcShown`. 8. No `watch` line: the sidebar's "Reporting on" is gone.
