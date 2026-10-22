@@ -14,6 +14,8 @@ import java.time.format.DateTimeParseException;
 final class Names
 {
 	static final DateTimeFormatter FOLDER = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+	/** Characters in a folder name's time, "2026-10-22_16-06-59". */
+	private static final int TIME_LENGTH = 19;
 	private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
 	private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("MMM d HH:mm");
 
@@ -21,12 +23,17 @@ final class Names
 	{
 	}
 
-	/** The folder name's moment, or null when the folder is not one of Black Box's. */
+	/**
+	 * The folder name's moment, or null when the folder is not one of Black Box's. A second recording started in the
+	 * same second carries "-2" (and so on) after the time.
+	 */
 	static LocalDateTime parse(String folderName)
 	{
 		try
 		{
-			return LocalDateTime.parse(folderName, FOLDER);
+			String time = folderName.matches(".+-\\d+") && folderName.length() > TIME_LENGTH
+				? folderName.substring(0, folderName.lastIndexOf('-')) : folderName;
+			return LocalDateTime.parse(time, FOLDER);
 		}
 		catch (DateTimeParseException | NullPointerException e)
 		{

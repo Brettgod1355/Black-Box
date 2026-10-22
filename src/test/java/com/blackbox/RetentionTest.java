@@ -26,6 +26,19 @@ public class RetentionTest
 	}
 
 	@Test
+	public void twoRecordingsStartedInTheSameSecondGetTheirOwnFolders()
+	{
+		// Two clients sharing one RuneLite folder, logging in within the same second (owner, 2026-10-22).
+		java.util.Set<String> made = new java.util.HashSet<>();
+		BlackBoxPlugin.FolderClaim disk = made::add;
+		assertEquals("2026-10-22_16-06-59", BlackBoxPlugin.claimName("2026-10-22_16-06-59", disk));
+		assertEquals("2026-10-22_16-06-59-2", BlackBoxPlugin.claimName("2026-10-22_16-06-59", disk));
+		assertEquals("2026-10-22_16-06-59-3", BlackBoxPlugin.claimName("2026-10-22_16-06-59", disk));
+		assertEquals("a disk error keeps the plain name", "2026-10-22_16-07-00",
+			BlackBoxPlugin.claimName("2026-10-22_16-07-00", name -> { throw new java.io.IOException("read-only"); }));
+	}
+
+	@Test
 	public void olderThanTheAgeLimitGoes()
 	{
 		List<Retention.Session> all = Arrays.asList(s("a", 10, 1), s("b", 8, 1), s("c", 2, 1), s("d", 0, 1));

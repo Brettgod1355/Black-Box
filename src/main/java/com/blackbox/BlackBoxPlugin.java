@@ -437,6 +437,38 @@ public class BlackBoxPlugin extends Plugin
 
 	// ---- Starting and stopping ----
 
+	/** Tries to make a recording's folder: true if it was made, false if one of that name is already there. */
+	interface FolderClaim
+	{
+		boolean create(String name) throws IOException;
+	}
+
+	/**
+	 * The recording's folder name: the start time, or with "-2", "-3" and so on when a folder of that name is already
+	 * there. Two clients sharing one RuneLite folder that log in within the same second would otherwise write into
+	 * one recording (owner, 2026-10-22). Making the folder is the claim, so the two cannot both win. When the folder
+	 * cannot be made at all, the plain name is used and opening the recording reports the error.
+	 */
+	static String claimName(String base, FolderClaim claim)
+	{
+		for (int n = 1; n < 100; n++)
+		{
+			String name = n == 1 ? base : base + "-" + n;
+			try
+			{
+				if (claim.create(name))
+				{
+					return name;
+				}
+			}
+			catch (IOException e)
+			{
+				return base;
+			}
+		}
+		return base;
+	}
+
 	private void startIfWanted()
 	{
 		if (session != null || !config.record() || client.getGameState() != GameState.LOGGED_IN)
@@ -454,7 +486,28 @@ public class BlackBoxPlugin extends Plugin
 			return;
 		}
 		long now = System.currentTimeMillis();
-		String name = LocalDateTime.now().format(SESSION_NAME);
+		String name = claimName(LocalDateTime.now().format(SESSION_NAME), n ->
+		{
+			Filepath dir = root.join(n);
+			if (dir.exists())
+			{
+				return false;
+			}
+			try
+			{
+				dir.createDirectory();
+				return true;
+			}
+			catch (IOException e)
+			{
+				// Made by the other client between the look and the making: that one is theirs.
+				if (dir.exists())
+				{
+					return false;
+				}
+				throw e;
+			}
+		});
 		SessionLog started = new SessionLog(name, root.join(name), now);
 		session = started;
 		collisionDone.clear();

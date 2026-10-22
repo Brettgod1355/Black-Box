@@ -6,6 +6,7 @@
 package com.blackbox;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 import java.time.LocalDateTime;
@@ -13,6 +14,15 @@ import org.junit.Test;
 
 public class NamesTest
 {
+	@Test
+	public void aSecondRecordingInTheSameSecondStillReadsAsThatTime()
+	{
+		assertEquals(Names.parse("2026-10-22_16-06-59"), Names.parse("2026-10-22_16-06-59-2"));
+		assertNotNull(Names.parse("2026-10-22_16-06-59-12"));
+		assertNull(Names.parse("2026-10-22_16-06-59-x"));
+		assertNull(Names.parse("notes-2"));
+	}
+
 	@Test
 	public void displayNames()
 	{
