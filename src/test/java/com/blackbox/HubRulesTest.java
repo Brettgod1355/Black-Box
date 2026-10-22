@@ -141,7 +141,9 @@ public class HubRulesTest
 		assertFalse("the jar manifest must not set Class-Path (packager)", gradle.contains("Class-Path"));
 		assertTrue("the session line's blackBox version must be the jar's: build.gradle says version = '" + BlackBoxPlugin.VERSION + "'",
 			gradle.contains("version = '" + BlackBoxPlugin.VERSION + "'"));
-		String properties = new String(Files.readAllBytes(Paths.get("runelite-plugin.properties")), StandardCharsets.UTF_8);
+		// A Windows checkout ends its lines with \r\n (core.autocrlf); the check is about the value, not the line ending.
+		String properties = new String(Files.readAllBytes(Paths.get("runelite-plugin.properties")), StandardCharsets.UTF_8)
+			.replace("\r\n", "\n");
 		assertTrue("build=standard keeps the review bot (reviewers, many PRs)", properties.contains("build=standard"));
 		assertTrue("runelite-plugin.properties must carry the same version as the session line", properties.contains("version=" + BlackBoxPlugin.VERSION + "\n"));
 	}
