@@ -89,7 +89,7 @@ path is copied to your clipboard.
 ### Asking a player for a recording (for developers)
 
 Paste this into the issue: "Install Black Box from the Plugin Hub and open its sidebar (the black box icon).
-It records on its own. Add *<your plugin>* under Watched plugins, make the problem happen, press Mark, say what you saw and
+It records on its own. Add *<your plugin>* under Reporting on, make the problem happen, press Mark, say what you saw and
 press Save flag, then press Export and pick the last 10 minutes, and attach the zip it names. It
 holds no chat from other players, no bank PIN and no pictures unless you turn those on; the README inside lists
 exactly what it holds."

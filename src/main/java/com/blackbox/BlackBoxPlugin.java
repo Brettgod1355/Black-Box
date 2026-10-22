@@ -1333,7 +1333,7 @@ public class BlackBoxPlugin extends Plugin
 
 	// ---- Watched plugins ----
 
-	/** What the sidebar's "Watched plugins" section reads and writes: Black Box's own configuration. Swing thread. */
+	/** What the sidebar's "Reporting on" section (once "Watched plugins") reads and writes: Black Box's own configuration. Swing thread. */
 	private final class Watching implements WatchPanel.Model
 	{
 		@Override
