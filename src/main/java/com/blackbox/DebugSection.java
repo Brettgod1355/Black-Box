@@ -47,6 +47,11 @@ class DebugSection extends JPanel
 	private final Map<DebugTest, JCheckBox> boxes = new EnumMap<>(DebugTest.class);
 	private final JButton select;
 
+	/** Wrapping width of the page's small text, in CSS pixels. */
+	private static final int TEXT_WIDTH = 170;
+	/** The same for a test's description, which sits 22 pixels in under its box. */
+	private static final int INDENTED_TEXT_WIDTH = 148;
+
 	DebugSection(Controls controls)
 	{
 		this.controls = controls;
@@ -75,8 +80,18 @@ class DebugSection extends JPanel
 		JLabel tests = new JLabel("Tests");
 		tests.setFont(FontManager.getRunescapeBoldFont());
 		tests.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		tests.setBorder(BorderFactory.createEmptyBorder(10, 0, 2, 0));
-		add(RecorderSection.fullWidth(tests));
+		// Select all / Clear all sits on the heading's row, above the list it works on (owner, 2026-10-22).
+		select = RecorderSection.button("Select all", "Tick every test, or untick them all once all are ticked", e ->
+		{
+			controls.setTests(DebugTest.afterSelect(ticked()));
+			refresh();
+		});
+		JPanel testsRow = new JPanel(new java.awt.BorderLayout());
+		testsRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		testsRow.setBorder(BorderFactory.createEmptyBorder(10, 0, 2, 0));
+		testsRow.add(tests, java.awt.BorderLayout.WEST);
+		testsRow.add(select, java.awt.BorderLayout.EAST);
+		add(RecorderSection.fullWidth(testsRow));
 		for (DebugTest test : DebugTest.values())
 		{
 			JCheckBox box = new JCheckBox(test.label);
@@ -92,7 +107,8 @@ class DebugSection extends JPanel
 			});
 			boxes.put(test, box);
 			add(RecorderSection.fullWidth(box));
-			JLabel about = small((test.heavy ? "Can cost frames. " : "Light. ") + test.description);
+			// Indented under the box, so narrower than the page's other text, or its right edge is cut off.
+			JLabel about = small((test.heavy ? "Can cost frames. " : "Light. ") + test.description, INDENTED_TEXT_WIDTH);
 			about.setBorder(BorderFactory.createEmptyBorder(0, 22, 4, 0));
 			if (test.heavy)
 			{
@@ -100,16 +116,6 @@ class DebugSection extends JPanel
 			}
 			add(RecorderSection.fullWidth(about));
 		}
-		select = RecorderSection.button("Select all", "Tick every test, or untick them all once all are ticked", e ->
-		{
-			controls.setTests(DebugTest.afterSelect(ticked()));
-			refresh();
-		});
-		JPanel selectRow = new JPanel(new java.awt.BorderLayout());
-		selectRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		selectRow.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
-		selectRow.add(select, java.awt.BorderLayout.CENTER);
-		add(RecorderSection.fullWidth(selectRow));
 		refresh();
 	}
 
@@ -157,15 +163,25 @@ class DebugSection extends JPanel
 	/** Small gray text that wraps to the sidebar's width. */
 	private static JLabel small(String text)
 	{
+		return small(text, TEXT_WIDTH);
+	}
+
+	private static JLabel small(String text, int width)
+	{
 		JLabel label = new JLabel();
 		label.setFont(FontManager.getRunescapeSmallFont());
 		label.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		setWrapped(label, text);
+		setWrapped(label, text, width);
 		return label;
 	}
 
 	private static void setWrapped(JLabel label, String text)
 	{
-		label.setText("<html><body style='width:170px'>" + text + "</body></html>");
+		setWrapped(label, text, TEXT_WIDTH);
+	}
+
+	private static void setWrapped(JLabel label, String text, int width)
+	{
+		label.setText("<html><body style='width:" + width + "px'>" + text + "</body></html>");
 	}
 }
