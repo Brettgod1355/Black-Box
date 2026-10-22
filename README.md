@@ -181,7 +181,7 @@ joins and leaves have their own lines; party members are numbers, never names.
 
 For a bug that needs more than a normal recording, the **Debug** page has extra tests. Tick the ones a developer
 asks for, or **Select all** (press it again, now **Clear all**, to untick them all), then switch **Debug** on. The
-tab reads "Debug (on)" while it is. The switch is never saved: it is off whenever the client starts, and with
+tab reads "Debug (on)" while it is and "Debug (off)" while it is not. The switch is never saved: it is off whenever the client starts, and with
 **Also turn off at logout** in the settings, at logout too. The ticks are saved, so switching Debug on next time
 runs the same tests. Each test is registered only while Debug is on and it is ticked, so the ones that are off cost
 nothing; two are marked as able to cost frames.

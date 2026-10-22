@@ -49,7 +49,7 @@ class BlackBoxPanel extends PluginPanel
 		MaterialTabGroup tabs = new MaterialTabGroup(display);
 		tabs.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
 		MaterialTab recorderTab = new MaterialTab("Recorder", tabs, top(column));
-		debugTab = new MaterialTab("Debug", tabs, top(debug));
+		debugTab = new MaterialTab(debugTabText(debug.isOn()), tabs, top(debug));
 		tabs.addTab(recorderTab);
 		tabs.addTab(debugTab);
 		tabs.select(recorderTab);
@@ -67,11 +67,17 @@ class BlackBoxPanel extends PluginPanel
 		return holder;
 	}
 
-	/** After Debug was switched, here or at logout: the page and the tab's "on" mark. Swing thread. */
+	/** After Debug was switched, here or at logout: the page and the tab's on/off mark. Swing thread. */
 	void debugChanged()
 	{
 		debug.refresh();
-		debugTab.setText(debug.isOn() ? "Debug (on)" : "Debug");
+		debugTab.setText(debugTabText(debug.isOn()));
+	}
+
+	/** The Debug tab says whether Debug is on or off, both ways (owner, 2026-10-22). */
+	static String debugTabText(boolean on)
+	{
+		return on ? "Debug (on)" : "Debug (off)";
 	}
 
 	@Override
