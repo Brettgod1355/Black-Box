@@ -9,7 +9,7 @@ Every line in `events.jsonl` has three fields: `e`, the kind of line; `tick`, th
 (the client counts about 1.67 a second; a login resets nothing, the count keeps rising); and `ms`, milliseconds
 since the recording began. A tool reads lines by `e` and ignores kinds it does not know.
 
-The first line's `format` says which version of this document the file follows. This is format **9**.
+The first line's `format` says which version of this document the file follows. This is format **10**.
 
 Privacy holds on every line: other players never appear, the player's own name is written as `<you>`, nothing
 is written while the bank PIN keypad shows except the `pause` and `resume` lines that bracket it.
@@ -37,7 +37,7 @@ The game state changed: `state` is RuneLite's name (`LOGGED_IN`, `LOGIN_SCREEN`,
 ### `pause` and `resume`
 The bank PIN keypad opened or closed; `why` is `bank PIN`. Between them no `click`, `var`, `shot` or `sound`
 line is written; from format 9 no `menu` or `varps` either, the tick line leaves out `idleMouse`, `idleKeys` and
-`menuAdds`, and no `overlays` line is written.
+`menuAdds`, and no `overlays` line is written; from format 10 none of the Debug page's tests write either.
 
 ## What the client is doing
 
@@ -254,6 +254,71 @@ Once per region per recording, the first tick the whole region is loaded: `regio
 region's south-west corner), `flags` as 64 rows of 64 numbers, `[x][y]`, the client's movement flags for each
 tile: what a boat or a walker can and cannot cross.
 
+## The Debug page (format 10)
+
+The sidebar's second page has a Debug switch and tests under it. The switch is never saved (off whenever the client
+starts, and at logout with the setting "Also turn off at logout"); which tests are ticked is saved. A test runs only
+while Debug is on and it is ticked, and writes nothing while the bank PIN keypad shows. A missing line therefore
+means "test off" only when the last `debug` line says so; read that first.
+
+### `debug`
+Debug switched on or off, a test ticked or unticked, or a recording started with Debug on: `on`, and `tests`, the keys
+of the ticked tests (`projectiles`, `npcDetails`, `widgets`, `scripts`, `varcs`, `mouse`, `timing`).
+
+### `projectile`
+Test `projectiles`. A projectile the first time the game places it: `id`, who fired it (`from` `<you>`, or `fromNpc`
+and `fromIndex`), at whom (`to`, or `toNpc` and `toIndex`), `fromX`/`fromY`/`fromPlane` and `toX`/`toY`/`toPlane`
+when the game gives them, `cycle` (the client's cycle now), `startCycle` and `endCycle` (when it leaves and lands, in
+client cycles), `startHeight`, `endHeight`, `slope`. Never one to or from another player.
+
+### `npcInfo`
+Test `npcDetails`. An NPC's make-up when it appears, when it turns into something else, and for every NPC in view when
+the test starts: `npc`, `index`, `becomes` (the NPC it shows as now, when that is not `npc`), `name`, `combat`,
+`size`, `actions` (its right-click options, empty strings for none), `interactible`, `minimap`, `follower` (a pet or
+other follower, when true).
+
+### `npcHealth`
+Test `npcDetails`. Health bars that changed since the last tick: `at`, each `[index, ratio, scale]` (ratio out of
+scale, as the game draws the bar; only NPCs that have a bar).
+
+### `npcFight`
+Test `npcDetails`. An NPC started or stopped interacting with something: `npc`, `index`, and the target as `target`
+`<you>`, `targetNpc` and `targetIndex`, `target` `player` (another player, never who) or `target` `none`.
+
+### `widgets`
+Test `widgets`. What the open interfaces show, as the parts that changed since the last tick (the first line after
+the test starts, or after a recording starts, has them all): `changed`, each `[key, type, text, itemId, quantity,
+spriteId, hidden]`, and `gone`, the keys of parts no longer there. `key` is `group.child`, with `[index]` for a part a
+script made under its parent. Only parts with something in them are kept (text, an item, a picture, or hidden), and
+nothing under a hidden part. Text is kept only in the player's own screens (the HUD and orbs, side panels, bank,
+equipment, shops, Grand Exchange offers, skill menus, dialogs, the collection log, Sailing's panels: the list is
+`DebugProbes.TEXT_INTERFACES`); everywhere else a part with text has `text` `<withheld>`, since lobbies, party boards
+and scoreboards list strangers. Kept text has its colors taken out (a line break becomes a space), the player's name as
+`<you>`, and every name the client knows (friends, ignores, chat channel and clan members, players in view and aboard
+boats) as `<player>`; a name that is also a common word ("Bank") is replaced there too. Interfaces about other players
+are left out whole, though an interface nested in one (a dialog in the chat box) is read on its own terms: the chat
+box and private messages, friends, ignores, chat channels and clans, group ironman, grouping, trade, the duel arena,
+reports, hiscores, display names, tournament viewers, and the bank PIN keypad.
+
+### `scripts`
+Test `scripts`. How many times each game script ran since the last tick: `ran`, script id to count. Never what was
+passed to a script, which can hold chat.
+
+### `varcs`
+Test `varcs`. The client's varc numbers that changed since the last tick: `values`, each `[index, value]` (the value
+at the tick). Never the text varcs, which hold what the player types.
+
+### `mouse`
+Test `mouse`. The mouse over the game canvas, once a tick when it moved: `x`, `y`; `-1`, `-1` when it is off the
+canvas.
+
+### `timing`
+Test `timing`. Once per game tick, from the last handler of the tick: `gameTickMs` (from the first plugin's game tick
+handler to the last, every plugin together, Black Box's own included), `slowestClientTickMs` (the same for the slowest
+client tick since the last line), `frames`, and when there were any, `meanFrameMs` and `slowestFrameMs` (from the start
+of a frame to the end of its drawing, overlays included). A plugin whose handler has the same priority as Black Box's
+first or last one may fall just outside the span.
+
 ## `client-log.txt`
 
 The client's own log, caught inside the client as it is written: every INFO, WARN and ERROR line of RuneLite
@@ -281,3 +346,5 @@ inventory id the exported events mention, with RuneLite's constant name; `?` whe
 RuneLite's own `settings` line; values of hidden and undeclared keys on `setting`; `rawOption` on `click`; `shown`
 and friend notices on `chat`; `how` and `focused` on `notify`; `profile`, `playerOptions`, `window`, `menu`, `hint`,
 `overlays`, `infoboxes`, `varps`, `scene`, `itemAdd`, `itemGone`, `loot`, `party`, `partyJoin`, `partyLeave`.
+10. The Debug page: `debug`, `projectile`, `npcInfo`, `npcHealth`, `npcFight`, `widgets`, `scripts`, `varcs`,
+`mouse`, `timing`.

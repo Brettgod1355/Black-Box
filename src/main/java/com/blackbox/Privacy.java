@@ -5,7 +5,10 @@
  */
 package com.blackbox;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -81,7 +84,36 @@ final class Privacy
 		{
 			return text;
 		}
-		String[] words = ownName.trim().split("[\\s\\u00A0_-]+");
+		return ownPattern(ownName).matcher(text).replaceAll(Matcher.quoteReplacement(YOU));
+	}
+
+	/** The last own name and its pattern: the name rarely changes, and scrub runs on every line. */
+	private static volatile Object[] ownCache = {null, null};
+
+	/**
+	 * The own name as a whole name: "Bob" is not replaced inside "Bobby", which would leave half of another player's
+	 * name behind and stop it being recognized.
+	 */
+	private static Pattern ownPattern(String ownName)
+	{
+		Object[] cached = ownCache;
+		if (ownName.equals(cached[0]))
+		{
+			return (Pattern) cached[1];
+		}
+		Pattern pattern = Pattern.compile("(?<![\\w])" + namePattern(ownName) + "(?![\\w])",
+			Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+		ownCache = new Object[]{ownName, pattern};
+		return pattern;
+	}
+
+	/** What another player's name becomes in text that may hold one (the Debug page's interface contents). */
+	static final String PLAYER = "<player>";
+
+	/** A name as a pattern, its words joined by any of the game's separators. */
+	private static String namePattern(String name)
+	{
+		String[] words = name.trim().split("[\\s\\u00A0_-]+");
 		StringBuilder pattern = new StringBuilder();
 		for (int i = 0; i < words.length; i++)
 		{
@@ -91,8 +123,50 @@ final class Privacy
 			}
 			pattern.append(Pattern.quote(words[i]));
 		}
-		Matcher m = Pattern.compile(pattern.toString(), Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE).matcher(text);
-		return m.replaceAll(Matcher.quoteReplacement(YOU));
+		return pattern.toString();
+	}
+
+	/**
+	 * One pattern for all these names (friends, ignores, chat channel and clan members, players in view), longest
+	 * first so a name inside another is not cut short; null when there are none. Built once and reused, since it
+	 * runs over every line of text on screen.
+	 */
+	static Pattern namesPattern(Collection<String> names)
+	{
+		List<String> sorted = new ArrayList<>();
+		for (String name : names)
+		{
+			if (name != null && !name.trim().isEmpty())
+			{
+				sorted.add(name);
+			}
+		}
+		if (sorted.isEmpty())
+		{
+			return null;
+		}
+		sorted.sort((a, b) -> b.length() - a.length());
+		StringBuilder pattern = new StringBuilder("(?<![\\w])(?:");
+		for (int i = 0; i < sorted.size(); i++)
+		{
+			if (i > 0)
+			{
+				pattern.append('|');
+			}
+			pattern.append(namePattern(sorted.get(i)));
+		}
+		pattern.append(")(?![\\w])");
+		return Pattern.compile(pattern.toString(), Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+	}
+
+	/** The text with every name the pattern knows replaced by {@link #PLAYER}. */
+	static String withoutNames(String text, Pattern names)
+	{
+		if (text == null || names == null)
+		{
+			return text;
+		}
+		return names.matcher(text).replaceAll(Matcher.quoteReplacement(PLAYER));
 	}
 
 	/**

@@ -64,7 +64,7 @@ watching it.
 
 ## The sidebar
 
-Click the black box icon in the sidebar. Recording starts by itself when you log in; the card at the top shows
+Click the black box icon in the sidebar. It has two pages, **Recorder** and **Debug** (below). Recording starts by itself when you log in; the card at the top shows
 the red dot, since when, the time so far and the size, and a red line when an export's pictures would show your
 chat (Pictures in clips on, Hide the chat box off), so you can change that before exporting. **Export** saves the last 2, 10 or 30 minutes, a number
 of minutes you choose, or all of today, as one zip to send to a developer; **Open folder** opens the folder that
@@ -177,6 +177,29 @@ plugin's own option among them), and `window` focus and canvas changes. A `notif
 was set up to reach the player and whether the window had focus. Ground items, loot reports and RuneLite party
 joins and leaves have their own lines; party members are numbers, never names.
 
+## The Debug page
+
+For a bug that needs more than a normal recording, the **Debug** page has extra tests. Tick the ones a developer
+asks for, or **Select all** (press it again, now **Clear all**, to untick them all), then switch **Debug** on. The
+tab reads "Debug (on)" while it is. The switch is never saved: it is off whenever the client starts, and with
+**Also turn off at logout** in the settings, at logout too. The ticks are saved, so switching Debug on next time
+runs the same tests. Each test is registered only while Debug is on and it is ticked, so the ones that are off cost
+nothing; two are marked as able to cost frames.
+
+| Test | What it adds |
+|---|---|
+| Projectiles | Each projectile: what fired it at what, from where to where, when it lands. None to or from other players. |
+| NPC details | An NPC's make-up (what it turns into, combat level, size, options), its health bar, what it is fighting. |
+| Interface contents (can cost frames) | What the open interfaces show, when it changes. Chat, friends, clan, trade and duel screens are left out; text is kept only on your own screens (side panels, bank, shops, dialogs, Sailing's panels and the like), with every name the client knows as `<player>`, and is `<withheld>` elsewhere. |
+| Game scripts (can cost frames) | How many times each game script ran, per tick; never what was passed to it. |
+| Client values | The client's varc numbers when they change; never the text ones, which hold what you type. |
+| Mouse position | Where the mouse is over the game, once a tick when it moved. |
+| Tick and frame timing | How long all plugins' tick handlers took together, the slowest client tick, how long frames took to draw. |
+
+A `debug` line in the recording says when Debug was on and which tests ran, so a developer can tell "test off"
+from "nothing happened". None of them write while the bank PIN keypad shows. Debug log lines for every plugin are
+planned once the Plugin Hub says a plugin may change the client's log level.
+
 ## Frames per second
 
 Black Box keeps the client's frames per second from the moment it loads, recording or not, and marks the moments
@@ -206,6 +229,7 @@ the last tick waited on the Swing thread and on the client thread.
 | Screenshots: Width | 960 pixels | Screenshots are shrunk to at most this width. |
 | Cleanup: Keep for (days) | 7 | Recordings older than this are deleted. |
 | Cleanup: Size limit (MB) | 500 | Then the oldest are deleted until the rest fit. |
+| Debug: Also turn off at logout | off | Debug switches off at logout, not only when the client closes. |
 
 Cleanup runs each time a recording starts. The recording in progress is never deleted.
 
@@ -257,6 +281,7 @@ per line, in the order things happened. Every line has `e` (what happened), `tic
 | `shot` | `file`, `reason` (`timer`, `notify` or `mark`) |
 | `mark` | |
 | `pause`, `resume` | `why` (`bank PIN`): no `click`, `var` or `shot` lines in between. A `shot` just before a `pause` may have no file: its frame came after the keypad opened. The same goes for a `shot` just before logging out or hopping |
+| `debug` | from format 10: `on`, `tests` (the Debug page; see FORMAT.md for each test's own lines) |
 | `end` | `why` |
 
 ## Replaying a recording in your tests

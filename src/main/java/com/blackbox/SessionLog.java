@@ -35,9 +35,10 @@ final class SessionLog
 	 * {@code watch} line; every recording covers every plugin and nothing is picked. 9: the cheap batch from the Hub
 	 * sweep (FORMAT.md, Versions): more on the session, tick, plugins, settings, setting, click, chat and notify
 	 * lines; profile, playerOptions, window, menu, hint, overlays, infoboxes, varps, scene, itemAdd/itemGone, loot
-	 * and party lines.
+	 * and party lines. 10: the Debug page's {@code debug} line and its tests' lines (projectile, npcInfo, npcHealth,
+	 * npcFight, widgets, scripts, varcs, mouse, timing).
 	 */
-	static final int FORMAT = 9;
+	static final int FORMAT = 10;
 	static final String EVENTS_FILE = "events.jsonl";
 	static final String SHOTS_DIR = "shots";
 

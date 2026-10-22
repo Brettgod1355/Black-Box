@@ -24,6 +24,9 @@ public interface BlackBoxConfig extends Config
 	@ConfigSection(name = "Cleanup", description = "Old recordings are deleted on their own so the folder stays small.", position = 20)
 	String CLEANUP = "cleanup";
 
+	@ConfigSection(name = "Debug", description = "The Debug page in the sidebar: extra tests for a bug report.", position = 30)
+	String DEBUG = "debug";
+
 	@ConfigItem(
 		keyName = "record",
 		name = "Record",
@@ -151,5 +154,29 @@ public interface BlackBoxConfig extends Config
 	default int maxMegabytes()
 	{
 		return 500;
+	}
+
+	@ConfigItem(
+		keyName = "debugOffAtLogout",
+		name = "Also turn off at logout",
+		description = "Switch Debug off when you log out, not only when the client closes. The ticked tests stay ticked.",
+		section = DEBUG,
+		position = 1
+	)
+	default boolean debugOffAtLogout()
+	{
+		return false;
+	}
+
+	/** The tests ticked on the Debug page, as {@link DebugTest#format} writes them. Set from the page only. */
+	@ConfigItem(
+		keyName = "debugTests",
+		name = "Debug tests",
+		description = "The tests ticked on the Debug page.",
+		hidden = true
+	)
+	default String debugTests()
+	{
+		return "";
 	}
 }

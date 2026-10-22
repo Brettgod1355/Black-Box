@@ -23,6 +23,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -98,6 +99,7 @@ import net.runelite.client.config.ConfigDescriptor;
 import net.runelite.client.config.ConfigItemDescriptor;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.config.Notification;
+import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.events.NpcLootReceived;
@@ -200,6 +202,16 @@ public class BlackBoxPlugin extends Plugin
 	@Inject
 	private ExternalPluginManager externalPluginManager;
 
+	@Inject
+	private EventBus eventBus;
+
+	/** The Debug switch: never saved, so off whenever the client starts. Any thread reads; set from the page. */
+	private volatile boolean debugOn;
+	/** The Debug page's tests, registered only while Debug is on; client thread. */
+	private DebugProbes probes;
+	/** {@link #menuOpenedFirst}, the second MenuOpened subscriber. */
+	private EventBus.Subscriber menuFirst;
+
 	/** Every plugin's config group, for the setting lines; client thread. */
 	private final Map<String, Plugin> groups = new HashMap<>();
 	/** A Mark pressed in the sidebar and not yet saved: its tick, its time and its picture; client thread. */
@@ -296,11 +308,79 @@ public class BlackBoxPlugin extends Plugin
 	protected void startUp()
 	{
 		keyManager.registerKeyListener(markListener);
+		menuFirst = eventBus.register(MenuOpened.class, this::menuOpenedFirst, FIRST);
 		logTap.attach();
 		flushTask = executor.scheduleWithFixedDelay(this::flushQuietly, 1, 1, TimeUnit.SECONDS);
 		Office office = new Office();
 		RecorderSection recorder = new RecorderSection(office);
-		panel = new BlackBoxPanel(recorder, new FpsSection(live, this::openFpsWindow), new RecordingsSection(office, recorder));
+		debugOn = false;
+		probes = new DebugProbes(client, eventBus, drawManager, new DebugProbes.Sink()
+		{
+			@Override
+			public boolean writing()
+			{
+				return session != null && !pinPause;
+			}
+
+			@Override
+			public JsonObject line(String kind)
+			{
+				// The session as it is now: shutDown may clear it from the Swing thread between writing() and here.
+				SessionLog now = session;
+				return now == null ? new JsonObject() : now.line(kind, client.getTickCount(), System.currentTimeMillis());
+			}
+
+			@Override
+			public void add(JsonObject line)
+			{
+				SessionLog now = session;
+				if (now != null)
+				{
+					now.add(line);
+				}
+			}
+
+			@Override
+			public String scrub(String text)
+			{
+				return BlackBoxPlugin.this.scrub(text);
+			}
+		});
+		DebugSection debug = new DebugSection(new DebugSection.Controls()
+		{
+			@Override
+			public boolean debugOn()
+			{
+				return debugOn;
+			}
+
+			@Override
+			public void setDebugOn(boolean on)
+			{
+				debugOn = on;
+				live.note(System.currentTimeMillis(), "setting", on ? "Debug on" : "Debug off");
+				if (panel != null)
+				{
+					panel.debugChanged();
+				}
+				clientThread.invoke(BlackBoxPlugin.this::applyDebug);
+			}
+
+			@Override
+			public Set<DebugTest> tests()
+			{
+				return DebugTest.parse(config.debugTests());
+			}
+
+			@Override
+			public void setTests(Set<DebugTest> tests)
+			{
+				configManager.setConfiguration(BlackBoxConfig.GROUP, "debugTests", DebugTest.format(tests));
+				clientThread.invoke(BlackBoxPlugin.this::applyDebug);
+			}
+		});
+		panel = new BlackBoxPanel(recorder, new FpsSection(live, this::openFpsWindow), new RecordingsSection(office, recorder),
+			debug);
 		clientThread.invoke(this::rebuildGroups);
 		forgetReportingOn();
 		navButton = NavigationButton.builder()
@@ -317,6 +397,17 @@ public class BlackBoxPlugin extends Plugin
 	protected void shutDown()
 	{
 		keyManager.unregisterKeyListener(markListener);
+		if (menuFirst != null)
+		{
+			eventBus.unregister(menuFirst);
+			menuFirst = null;
+		}
+		debugOn = false;
+		DebugProbes stopping = probes;
+		if (stopping != null)
+		{
+			clientThread.invoke(stopping::stopAll);
+		}
 		logTap.detach();
 		if (navButton != null)
 		{
@@ -396,6 +487,11 @@ public class BlackBoxPlugin extends Plugin
 		writePlugins(started, now);
 		writeProfile(started, now, null);
 		writePlayerOptions(started, now);
+		probes.reset();
+		if (debugOn)
+		{
+			writeDebug(started, now);
+		}
 		Player me = client.getLocalPlayer();
 		logTap.setOwnName(me == null ? null : me.getName());
 		executor.execute(() ->
@@ -548,6 +644,20 @@ public class BlackBoxPlugin extends Plugin
 		}
 		else if (state == GameState.LOGIN_SCREEN)
 		{
+			if (debugOn && config.debugOffAtLogout())
+			{
+				// Before the recording ends, so its last debug line says Debug went off.
+				debugOn = false;
+				live.note(System.currentTimeMillis(), "setting", "Debug off (logout)");
+				applyDebug();
+				SwingUtilities.invokeLater(() ->
+				{
+					if (panel != null)
+					{
+						panel.debugChanged();
+					}
+				});
+			}
 			stop("logged out");
 		}
 	}
@@ -655,6 +765,10 @@ public class BlackBoxPlugin extends Plugin
 		}
 		infoBoxes();
 		varps();
+		if (debugOn)
+		{
+			probes.tick();
+		}
 
 		int every = config.shotEverySeconds();
 		if (every > 0 && !pinPause && System.currentTimeMillis() - lastShotAt >= every * 1000L)
@@ -2080,6 +2194,32 @@ public class BlackBoxPlugin extends Plugin
 		return new Retention.Session(dir.getFileName(), newest, bytes);
 	}
 
+	// ---- The Debug page (format 10) ----
+
+	/** Runs the ticked tests while Debug is on, none while off, and says so in the recording. Client thread. */
+	private void applyDebug()
+	{
+		probes.run(debugOn ? DebugTest.parse(config.debugTests()) : EnumSet.noneOf(DebugTest.class));
+		if (session != null)
+		{
+			writeDebug(session, System.currentTimeMillis());
+		}
+	}
+
+	/** Whether Debug is on and which tests are ticked, so a missing line reads as "test off", not "nothing happened". */
+	private void writeDebug(SessionLog target, long now)
+	{
+		JsonObject o = target.line("debug", client.getTickCount(), now);
+		o.addProperty("on", debugOn);
+		JsonArray tests = new JsonArray();
+		for (DebugTest test : DebugTest.parse(config.debugTests()))
+		{
+			tests.add(test.key);
+		}
+		o.add("tests", tests);
+		target.add(o);
+	}
+
 	// ---- Format 9: the cheap batch from the Hub sweep (research/hub-hard-bugs-2026-10-21.md) ----
 
 	/** RuneLite's own config group. */
@@ -2169,6 +2309,18 @@ public class BlackBoxPlugin extends Plugin
 				writeProfile(session, now, "settings profile");
 				writePlugins(session, now);
 			}
+			// The ticked tests are a setting too: the new profile's run from now on.
+			if (debugOn)
+			{
+				applyDebug();
+			}
+		});
+		SwingUtilities.invokeLater(() ->
+		{
+			if (panel != null)
+			{
+				panel.debugChanged();
+			}
 		});
 	}
 
@@ -2256,8 +2408,11 @@ public class BlackBoxPlugin extends Plugin
 		return Math.round((System.nanoTime() - nanos) / 100_000.0) / 10.0;
 	}
 
-	@Subscribe(priority = FIRST)
-	public void onMenuOpenedFirst(MenuOpened event)
+	/**
+	 * The menu as the game opened it, before any other plugin. Registered in {@link #startUp} as a second subscriber
+	 * at {@link #FIRST}: the event bus only takes {@code @Subscribe} methods named exactly {@code onMenuOpened}.
+	 */
+	private void menuOpenedFirst(MenuOpened event)
 	{
 		menuBefore = session == null || pinPause ? null : menu(event.getMenuEntries());
 	}

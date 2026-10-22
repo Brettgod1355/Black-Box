@@ -11,23 +11,28 @@ import javax.swing.BoxLayout;
 import javax.swing.JPanel;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
+import net.runelite.client.ui.components.materialtabs.MaterialTab;
+import net.runelite.client.ui.components.materialtabs.MaterialTabGroup;
 
 /**
- * The sidebar, top to bottom: the recorder (record, mark, share, note), frames per second and the recordings.
- * Timers run only while the panel is showing.
+ * The sidebar, two pages. Recorder, top to bottom: the recorder (record, mark, share, note), frames per second and
+ * the recordings. Debug: the Debug switch and its tests. Timers run only while the panel is showing.
  */
 class BlackBoxPanel extends PluginPanel
 {
 	private final RecorderSection recorder;
 	private final FpsSection fps;
 	private final RecordingsSection recordings;
+	private final DebugSection debug;
+	private final MaterialTab debugTab;
 
-	BlackBoxPanel(RecorderSection recorder, FpsSection fps, RecordingsSection recordings)
+	BlackBoxPanel(RecorderSection recorder, FpsSection fps, RecordingsSection recordings, DebugSection debug)
 	{
 		super();
 		this.recorder = recorder;
 		this.fps = fps;
 		this.recordings = recordings;
+		this.debug = debug;
 		setLayout(new BorderLayout());
 		setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 		setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -39,7 +44,34 @@ class BlackBoxPanel extends PluginPanel
 			section.setAlignmentX(LEFT_ALIGNMENT);
 			column.add(section);
 		}
-		add(column, BorderLayout.NORTH);
+		JPanel display = new JPanel(new BorderLayout());
+		display.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		MaterialTabGroup tabs = new MaterialTabGroup(display);
+		tabs.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
+		MaterialTab recorderTab = new MaterialTab("Recorder", tabs, top(column));
+		debugTab = new MaterialTab("Debug", tabs, top(debug));
+		tabs.addTab(recorderTab);
+		tabs.addTab(debugTab);
+		tabs.select(recorderTab);
+		add(tabs, BorderLayout.NORTH);
+		add(display, BorderLayout.CENTER);
+		debugChanged();
+	}
+
+	/** A page's content held at the top, so a short page does not stretch. */
+	private static JPanel top(JPanel content)
+	{
+		JPanel holder = new JPanel(new BorderLayout());
+		holder.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		holder.add(content, BorderLayout.NORTH);
+		return holder;
+	}
+
+	/** After Debug was switched, here or at logout: the page and the tab's "on" mark. Swing thread. */
+	void debugChanged()
+	{
+		debug.refresh();
+		debugTab.setText(debug.isOn() ? "Debug (on)" : "Debug");
 	}
 
 	@Override
