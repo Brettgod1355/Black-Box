@@ -400,6 +400,23 @@ final class ClipBundle
 		}
 	}
 
+	/**
+	 * The most recent recording, for "the last N minutes" when nothing was recorded in them: the player was logged out
+	 * when they noticed the problem (owner, 2026-10-23). Null when there is none.
+	 */
+	static Source latest(List<Source> all)
+	{
+		Source latest = null;
+		for (Source source : all)
+		{
+			if (latest == null || source.endsAt() > latest.endsAt())
+			{
+				latest = source;
+			}
+		}
+		return latest;
+	}
+
 	/** The recordings that overlap a window, oldest first. */
 	static List<Source> covering(List<Source> all, long since, long until)
 	{

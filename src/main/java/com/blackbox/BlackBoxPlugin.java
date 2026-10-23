@@ -1564,7 +1564,7 @@ public class BlackBoxPlugin extends Plugin
 		{
 			long now = System.currentTimeMillis();
 			bundle(report, now - lastMinutes * 60_000L, now, false,
-				Names.FOLDER.format(LocalDateTime.now()) + "-last" + lastMinutes + "min.zip", includeText);
+				Names.FOLDER.format(LocalDateTime.now()) + "-last" + lastMinutes + "min.zip", includeText, lastMinutes);
 		}
 
 		@Override
@@ -1572,7 +1572,7 @@ public class BlackBoxPlugin extends Plugin
 		{
 			long now = System.currentTimeMillis();
 			long midnight = LocalDateTime.now().toLocalDate().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
-			bundle(report, midnight, now, true, LocalDateTime.now().toLocalDate() + "-today.zip", includeText);
+			bundle(report, midnight, now, true, LocalDateTime.now().toLocalDate() + "-today.zip", includeText, 0);
 		}
 
 		@Override
@@ -1614,8 +1614,13 @@ public class BlackBoxPlugin extends Plugin
 			});
 		}
 
-		/** Writes the recordings overlapping a window, whole when {@code whole}, else from {@code since}. */
-		private void bundle(Report report, long since, long until, boolean whole, String fileName, Set<String> includeText)
+		/**
+		 * Writes the recordings overlapping a window, whole when {@code whole}, else from {@code since}. With
+		 * {@code lastMinutes} above 0 and nothing recorded in the window, it takes the last that many minutes of the most
+		 * recent recording instead, and says so.
+		 */
+		private void bundle(Report report, long since, long until, boolean whole, String fileName, Set<String> includeText,
+			int lastMinutes)
 		{
 			executor.execute(() ->
 			{
@@ -1629,14 +1634,30 @@ public class BlackBoxPlugin extends Plugin
 					}
 					List<ClipBundle.Source> all = ClipBundle.sources(gson, root, current == null ? null : current.getName(), current == null ? 0 : current.getStartedAt(), until);
 					List<ClipBundle.Source> covering = ClipBundle.covering(all, since, until);
+					long from = since;
+					String file = fileName;
+					String instead = null;
+					ClipBundle.Source latest = ClipBundle.latest(all);
+					if (covering.isEmpty() && lastMinutes > 0 && latest != null)
+					{
+						long end = latest.endsAt();
+						from = end - lastMinutes * 60_000L;
+						covering = ClipBundle.covering(all, from, end);
+						file = latest.name + "-last" + lastMinutes + "min.zip";
+						instead = "Nothing was recorded in the last " + lastMinutes + " minutes, so this is the last " + lastMinutes
+							+ " minutes of the recording that ended at "
+							+ java.time.format.DateTimeFormatter.ofPattern("HH:mm").format(
+								java.time.Instant.ofEpochMilli(end).atZone(java.time.ZoneId.systemDefault()))
+							+ ". ";
+					}
 					if (covering.isEmpty())
 					{
 						say(report, "Nothing recorded in that time.");
 						return;
 					}
-					Filepath zip = ClipBundle.write(gson, root, covering, whole ? 0 : since, config.picturesInClips(), config.hideChat(), fileName,
+					Filepath zip = ClipBundle.write(gson, root, covering, whole ? 0 : from, config.picturesInClips(), config.hideChat(), file,
 						names(), includeText);
-					done(report, zip);
+					done(report, zip, instead);
 				}
 				catch (IOException e)
 				{
@@ -1665,9 +1686,16 @@ public class BlackBoxPlugin extends Plugin
 
 		private void done(Report report, Filepath zip)
 		{
+			done(report, zip, null);
+		}
+
+		/** Reports a written zip; {@code before}, when given, says first what was exported instead. */
+		private void done(Report report, Filepath zip, String before)
+		{
 			String where = zip.toString();
 			boolean copied = RecorderSection.copy(where);
-			say(report, RecorderSection.EXPORTED + where + (copied ? " (path copied to the clipboard)" : ""));
+			say(report, (before == null ? "" : before) + RecorderSection.EXPORTED + where
+				+ (copied ? " (path copied to the clipboard)" : ""));
 		}
 
 		@Override

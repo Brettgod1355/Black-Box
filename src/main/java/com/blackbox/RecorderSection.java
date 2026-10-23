@@ -207,7 +207,7 @@ class RecorderSection extends JPanel
 	void say(String text)
 	{
 		status.setText(text);
-		openExports.setVisible(text != null && text.startsWith(EXPORTED));
+		openExports.setVisible(text != null && text.contains(EXPORTED));
 		status.revalidate();
 	}
 
