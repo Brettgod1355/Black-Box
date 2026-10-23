@@ -51,6 +51,15 @@ class FpsChart extends JComponent
 	private boolean showLabels = true;
 	private Runnable onClick;
 	private LongConsumer onCursor;
+	/** Called with [from, to] when the player drags across the chart; null where dragging does nothing (the sidebar). */
+	private java.util.function.BiConsumer<Long, Long> onZoom;
+	/** Where a drag began and where it is now, in pixels; -1 when not dragging. */
+	private int dragFromX = -1;
+	private int dragToX = -1;
+	/** Narrower drags than this are clicks. */
+	static final int MIN_DRAG = 6;
+	/** The narrowest span a drag zooms to, so a tiny drag does not show a single reading across the chart. */
+	static final long MIN_ZOOM_MILLIS = 2_000;
 
 	FpsChart(FpsSeries series)
 	{
@@ -73,6 +82,46 @@ class FpsChart extends JComponent
 			{
 				hoverX = -1;
 				hoverY = -1;
+				repaint();
+			}
+
+			@Override
+			public void mousePressed(MouseEvent e)
+			{
+				if (onZoom != null && javax.swing.SwingUtilities.isLeftMouseButton(e))
+				{
+					dragFromX = e.getX();
+					dragToX = -1;
+				}
+			}
+
+			@Override
+			public void mouseDragged(MouseEvent e)
+			{
+				if (dragFromX >= 0)
+				{
+					dragToX = e.getX();
+					hoverX = e.getX();
+					hoverY = e.getY();
+					repaint();
+				}
+			}
+
+			@Override
+			public void mouseReleased(MouseEvent e)
+			{
+				int from = dragFromX, to = dragToX;
+				dragFromX = -1;
+				dragToX = -1;
+				if (from >= 0 && to >= 0 && Math.abs(to - from) >= MIN_DRAG)
+				{
+					int left = clampToPlot(Math.min(from, to)), right = clampToPlot(Math.max(from, to));
+					long[] zoom = zoomSpan(timeAt(left), timeAt(right), MIN_ZOOM_MILLIS);
+					if (zoom != null)
+					{
+						onZoom.accept(zoom[0], zoom[1]);
+					}
+				}
 				repaint();
 			}
 
@@ -152,6 +201,37 @@ class FpsChart extends JComponent
 	void setOnClick(Runnable onClick)
 	{
 		this.onClick = onClick;
+	}
+
+	/**
+	 * Click and hold, drag across the chart, let go: called with the span dragged over, to zoom into it (owner,
+	 * 2026-10-23: "click and hold to highlight an area then it will then zoom into that area to make it fill").
+	 */
+	void setOnZoom(java.util.function.BiConsumer<Long, Long> onZoom)
+	{
+		this.onZoom = onZoom;
+	}
+
+	/** A dragged span, at least {@code min} wide around its middle; null when either end is off the series. */
+	static long[] zoomSpan(long a, long b, long min)
+	{
+		if (a < 0 || b < 0)
+		{
+			return null;
+		}
+		long from = Math.min(a, b), to = Math.max(a, b);
+		if (to - from < min)
+		{
+			long middle = (from + to) / 2;
+			from = middle - min / 2;
+			to = from + min;
+		}
+		return new long[]{from, to};
+	}
+
+	private int clampToPlot(int x)
+	{
+		return Math.max(PAD_LEFT, Math.min(PAD_LEFT + plotWidth(), x));
 	}
 
 	/** Called with the moment under a click, for scrubbing. */
@@ -288,6 +368,15 @@ class FpsChart extends JComponent
 					g.drawString(label, Math.min(x + 3, PAD_LEFT + width - fm.stringWidth(label)), y);
 					row++;
 				}
+			}
+			// The span being dragged over, to zoom into.
+			if (dragFromX >= 0 && dragToX >= 0)
+			{
+				int dragLeft = clampToPlot(Math.min(dragFromX, dragToX)), dragRight = clampToPlot(Math.max(dragFromX, dragToX));
+				g.setColor(new Color(255, 255, 255, 40));
+				g.fillRect(dragLeft, PAD_TOP, dragRight - dragLeft, height);
+				g.setColor(new Color(255, 255, 255, 140));
+				g.drawRect(dragLeft, PAD_TOP, dragRight - dragLeft, height);
 			}
 			// Cursor and hover.
 			if (cursor >= from && cursor <= to)

@@ -73,4 +73,17 @@ public class FpsChartTest
 			g.dispose();
 		}
 	}
+
+	@Test
+	public void aDragZoomsToTheSpanDraggedOverAtLeastTwoSeconds()
+	{
+		// Owner, 2026-10-23: click and hold, drag, let go: that span fills the chart.
+		long[] span = FpsChart.zoomSpan(50_000, 20_000, FpsChart.MIN_ZOOM_MILLIS);
+		assertEquals(20_000, span[0]);
+		assertEquals(50_000, span[1]);
+		long[] tiny = FpsChart.zoomSpan(10_000, 10_400, FpsChart.MIN_ZOOM_MILLIS);
+		assertEquals(FpsChart.MIN_ZOOM_MILLIS, tiny[1] - tiny[0]);
+		assertTrue("around the drag", tiny[0] <= 10_000 && tiny[1] >= 10_400);
+		assertNull("off the series", FpsChart.zoomSpan(-1, 10_000, FpsChart.MIN_ZOOM_MILLIS));
+	}
 }

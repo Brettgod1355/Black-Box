@@ -72,6 +72,11 @@ class FpsWindow extends JFrame
 	private final DefaultListModel<FpsSeries.Note> noteModel = new DefaultListModel<>();
 	private final JList<FpsSeries.Note> notes = new JList<>(noteModel);
 	private final JSlider scrub = new JSlider(0, 1000, 1000);
+	private final ButtonGroup ranges = new ButtonGroup();
+	private final JButton resetZoom = new JButton("Reset zoom");
+	/** The range picked before a zoom, to go back to. */
+	private JToggleButton rangeButton;
+	private long rangeMillis = 5 * 60_000L;
 	private final JLabel status = new JLabel(" ");
 	private final Timer timer;
 	private FpsSeries shown;
@@ -95,6 +100,10 @@ class FpsWindow extends JFrame
 		chart = new FpsChart(live);
 		chart.setWindow(5 * 60_000L);
 		chart.setOnCursor(this::cursorTo);
+		chart.setOnZoom(this::zoom);
+		resetZoom.setToolTipText("Back to the range picked before zooming in");
+		resetZoom.addActionListener(e -> resetZoom());
+		resetZoom.setVisible(false);
 
 		JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
 		top.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -110,12 +119,12 @@ class FpsWindow extends JFrame
 		openClip.addActionListener(e -> openClip());
 		top.add(openClip);
 		top.add(new JLabel("   Range"));
-		ButtonGroup ranges = new ButtonGroup();
 		addRange(top, ranges, "1 min", 60_000L, false);
 		addRange(top, ranges, "5 min", 5 * 60_000L, true);
 		addRange(top, ranges, "15 min", 15 * 60_000L, false);
 		addRange(top, ranges, "1 h", 60 * 60_000L, false);
 		addRange(top, ranges, "All", 0, false);
+		top.add(resetZoom);
 		JCheckBox labels = new JCheckBox("Labels", true);
 		labels.addActionListener(e ->
 		{
@@ -187,11 +196,24 @@ class FpsWindow extends JFrame
 	private void addRange(JPanel to, ButtonGroup group, String text, long millis, boolean selected)
 	{
 		JToggleButton button = new JToggleButton(text, selected);
+		button.setToolTipText("Show " + (millis <= 0 ? "the whole recording" : "this much") + "; or drag across the chart to zoom in");
 		button.addActionListener(e ->
 		{
+			rangeButton = button;
+			rangeMillis = millis;
+			resetZoom.setVisible(false);
+			if (!shown.isRelative())
+			{
+				chart.setFollow(true);
+			}
 			chart.setWindow(millis);
 			refreshStatus();
 		});
+		if (selected)
+		{
+			rangeButton = button;
+			rangeMillis = millis;
+		}
 		group.add(button);
 		to.add(button);
 	}
@@ -353,6 +375,37 @@ class FpsWindow extends JFrame
 		status.setText(shown.getName() + ": " + shown.size() + " readings, showing " + FpsChart.clock(span[0], shown) + " to "
 			+ FpsChart.clock(span[1], shown) + ": low " + stats.min + ", mean " + Math.round(stats.mean) + ", high " + stats.max
 			+ (chart.timeAtCursor() < 0 ? "" : "; at cursor " + Math.max(0, shown.at(chart.timeAtCursor())) + " fps"));
+	}
+
+	/** Shows just the span dragged over, filling the chart; Reset zoom goes back. */
+	private void zoom(long from, long to)
+	{
+		chart.setFollow(false);
+		chart.setEnd(to);
+		chart.setWindow(Math.max(1, to - from));
+		ranges.clearSelection();
+		resetZoom.setVisible(true);
+		refreshStatus();
+	}
+
+	/** Back to the range button picked before zooming: following the newest reading when live, else the whole of it. */
+	private void resetZoom()
+	{
+		resetZoom.setVisible(false);
+		if (rangeButton != null)
+		{
+			rangeButton.setSelected(true);
+		}
+		if (shown.isRelative())
+		{
+			chart.setEnd(Math.max(0, shown.last()));
+		}
+		else
+		{
+			chart.setFollow(true);
+		}
+		chart.setWindow(rangeMillis);
+		refreshStatus();
 	}
 
 	/** Puts the cursor on a moment, moving the view when it is off screen. */
