@@ -11,7 +11,9 @@ import com.google.gson.JsonSyntaxException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -21,10 +23,12 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 import net.runelite.client.util.Filepath;
 
@@ -47,6 +51,7 @@ final class ClipBundle
 		+ "client-log.txt holds the client's own log lines for the same minutes, plus every warning and error since the\n"
 		+ "client started, as RuneLite's client.log would, caught inside the client with your name and home folder replaced.\n"
 		+ "%LOG%"
+		+ "%FPS%"
 		+ "names.txt gives RuneLite's name for every varbit, interface, sound, animation, NPC, object and item id the\n"
 		+ "events mention.\n"
 		+ "%PICTURES%"
@@ -69,6 +74,12 @@ final class ClipBundle
 	/** As above, with the warnings and errors of the clip's client log summed up (the lines of {@code client-log.txt}). */
 	static String readme(boolean pictures, boolean chatHidden, List<String> log)
 	{
+		return readme(pictures, chatHidden, log, "");
+	}
+
+	/** As above, with the clip's frames per second summed up ({@link FpsSummary}). */
+	static String readme(boolean pictures, boolean chatHidden, List<String> log, String fps)
+	{
 		String shots;
 		String never;
 		if (!pictures)
@@ -90,7 +101,8 @@ final class ClipBundle
 				+ "and chat. Look at them before sending, or turn Pictures in clips off and export again.\n";
 			never = "Apart from what the pictures show, it never holds: other players' chat,";
 		}
-		return README.replace("%PICTURES%", shots).replace("%NEVER%", never).replace("%LOG%", logSummary(log));
+		return README.replace("%PICTURES%", shots).replace("%NEVER%", never).replace("%LOG%", logSummary(log))
+			.replace("%FPS%", fps);
 	}
 	/** How many groups the summary lists before saying "and N more". */
 	static final int SUMMARY_GROUPS = 25;
@@ -413,6 +425,41 @@ final class ClipBundle
 	 * returns it. Each source's events are trimmed to the window, its client log too, its pictures included only
 	 * when asked.
 	 */
+	/**
+	 * A clip's frames per second for the window's chart: the {@code events.jsonl} inside a clip's zip, or an events
+	 * file itself. Read only; the file is not changed or copied.
+	 */
+	static FpsSeries readSeries(Gson gson, Filepath file) throws IOException
+	{
+		try (InputStream in = file.openInputStream())
+		{
+			return readSeries(gson, file.getFileName(), in);
+		}
+	}
+
+	/** As above, from the file's bytes; {@code name} says which kind it is (an events file ends in .jsonl). */
+	static FpsSeries readSeries(Gson gson, String name, InputStream file) throws IOException
+	{
+		if (name.toLowerCase(Locale.ROOT).endsWith(".jsonl"))
+		{
+			return FpsSeries.fromRecording(name, gson, new BufferedReader(new InputStreamReader(file, StandardCharsets.UTF_8)));
+		}
+		try (ZipInputStream zip = new ZipInputStream(file))
+		{
+			ZipEntry entry;
+			while ((entry = zip.getNextEntry()) != null)
+			{
+				String path = entry.getName();
+				if (path.equals(SessionLog.EVENTS_FILE) || path.endsWith("/" + SessionLog.EVENTS_FILE))
+				{
+					return FpsSeries.fromRecording(name, gson,
+						new BufferedReader(new InputStreamReader(zip, StandardCharsets.UTF_8)));
+				}
+			}
+		}
+		throw new IOException("there is no " + SessionLog.EVENTS_FILE + " in it; is it a Black Box clip?");
+	}
+
 	static Filepath write(Gson gson, Filepath root, List<Source> sources, long since, boolean pictures, String fileName) throws IOException
 	{
 		return write(gson, root, sources, since, pictures, true, fileName, null);
@@ -458,7 +505,8 @@ final class ClipBundle
 			}
 			boolean anyPicture = shots.values().stream().anyMatch(list -> !list.isEmpty());
 			out.putNextEntry(new ZipEntry("README.txt"));
-			out.write(readme(anyPicture, chatHidden, log).getBytes(StandardCharsets.UTF_8));
+			FpsSeries fps = FpsSeries.fromRecording(fileName, gson, new BufferedReader(new StringReader(String.join("\n", events))));
+			out.write(readme(anyPicture, chatHidden, log, FpsSummary.of(fps, ZoneId.systemDefault())).getBytes(StandardCharsets.UTF_8));
 			out.closeEntry();
 			out.putNextEntry(new ZipEntry(SessionLog.EVENTS_FILE));
 			for (String line : events)

@@ -76,6 +76,8 @@ final class FpsSeries
 	private final boolean relative;
 	private final List<Sample> samples = new ArrayList<>();
 	private final List<Note> notes = new ArrayList<>();
+	/** The first recording's start on the wall clock (its session line's {@code startedAt}), or -1 when unknown. */
+	private long startedAt = -1;
 
 	FpsSeries(String name, int capacity)
 	{
@@ -87,6 +89,11 @@ final class FpsSeries
 		this.name = name;
 		this.capacity = capacity;
 		this.relative = relative;
+	}
+
+	synchronized long startedAt()
+	{
+		return startedAt;
 	}
 
 	boolean isRelative()
@@ -219,11 +226,16 @@ final class FpsSeries
 	/**
 	 * A recording's series: the {@code fps} field of each {@code tick} line (format 3 and later), and its
 	 * plugin, setting, mark, notify, state, session and end lines as notes. Times are the lines' {@code ms},
-	 * milliseconds since the recording began. Lines that are not JSON are skipped, not fatal.
+	 * milliseconds since the recording began. Lines that are not JSON are skipped, not fatal. A clip can hold several
+	 * recordings one after another, each with its own {@code ms} from 0: each later one is placed by its session
+	 * line's {@code startedAt} against the first's (or just after the last line, when an old one has none).
 	 */
 	static FpsSeries fromRecording(String name, Gson gson, BufferedReader in) throws IOException
 	{
 		FpsSeries series = new FpsSeries(name, Integer.MAX_VALUE, true);
+		long offset = 0;
+		long lastAt = 0;
+		boolean seenSession = false;
 		String text;
 		while ((text = in.readLine()) != null)
 		{
@@ -245,7 +257,26 @@ final class FpsSeries
 				continue;
 			}
 			String kind = o.get("e").getAsString();
-			long at = o.get("ms").getAsLong();
+			if ("session".equals(kind))
+			{
+				long started = o.has("startedAt") ? o.get("startedAt").getAsLong() : -1;
+				if (!seenSession)
+				{
+					series.startedAt = started;
+					offset = 0;
+				}
+				else if (started >= 0 && series.startedAt >= 0)
+				{
+					offset = started - series.startedAt;
+				}
+				else
+				{
+					offset = lastAt + 1000;
+				}
+				seenSession = true;
+			}
+			long at = o.get("ms").getAsLong() + offset;
+			lastAt = Math.max(lastAt, at);
 			switch (kind)
 			{
 				case "tick":

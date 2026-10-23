@@ -1,7 +1,7 @@
 # Reading a recording
 
 A Black Box export is plain text. You need a text editor, or `grep`, or an AI assistant with this page and
-`FORMAT.md` in front of it. The five questions a developer asks, and where the answers are.
+`FORMAT.md` in front of it. The six questions a developer asks, and where the answers are.
 
 ## 1. What was the player running?
 
@@ -50,6 +50,18 @@ logic decided on every tick of that session, and a fix can be checked against th
 From format 7, an `npcSay` line's `shown` is what the NPC showed once every other plugin had handled the line, and
 an `npcShown` line what it showed a client tick later when that changed again: a crewmate's line blanked by one
 plugin and written back by another reads as those two, and the `plugins` line says which plugins could have.
+
+## 6. Was the frame rate bad, and when?
+
+`README.txt` sums it up: low, mean and high over the clip, and the lowest moments, each with the last thing that
+happened before it and how long before (a plugin switched on, a setting changed, a mark, a notification, a login). Every
+`tick` line has `fps`; `frames` and `longestFrameMs` (format 9) show a stutter the average hides, and `edtWaitMs` and
+`clientWaitMs` a frozen client. With the Debug page's timing test, `timing` lines say how long every plugin's tick
+handlers took together and how long frames took to draw. To see it as a chart, open the clip with Black Box's own
+window: click the chart in its sidebar, then **Open a clip…**, and hover or click any moment.
+
+    grep -o '"fps":[0-9]*' events.jsonl | sort -t: -k2 -n | head
+    grep '"plugin"\|"setting"\|"mark"' events.jsonl
 
 ## Handing it to an AI assistant
 

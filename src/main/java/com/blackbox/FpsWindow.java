@@ -11,7 +11,9 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultComboBoxModel;
@@ -31,6 +33,7 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.util.Filepath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +53,16 @@ class FpsWindow extends JFrame
 		List<String> recordings() throws IOException;
 
 		FpsSeries load(String name) throws IOException;
+
+		/** Asks for a clip a player sent (its zip, or an events file); null when cancelled. Swing thread. */
+		Filepath chooseClip(Component parent);
+
+		/** A clip's series, read from the file without changing or copying it. Executor thread. */
+		FpsSeries loadClip(Filepath file) throws IOException;
 	}
+
+	/** What a clip is called in the Show list. */
+	private static final String CLIP = "Clip: ";
 
 	private final FpsSeries live;
 	private final Source source;
@@ -65,6 +77,8 @@ class FpsWindow extends JFrame
 	private FpsSeries shown;
 	private int notesShown = -1;
 	private boolean adjusting;
+	/** Clips opened in this window, by their name in the Show list; Swing thread. */
+	private final Map<String, FpsSeries> clips = new LinkedHashMap<>();
 
 	FpsWindow(FpsSeries live, Source source, ScheduledExecutorService executor)
 	{
@@ -91,6 +105,10 @@ class FpsWindow extends JFrame
 		JButton reload = new JButton("Reload list");
 		reload.addActionListener(e -> reloadList());
 		top.add(reload);
+		JButton openClip = new JButton("Open a clip…");
+		openClip.setToolTipText("Show a clip a player sent you: its frames per second, plugin and setting changes, marks");
+		openClip.addActionListener(e -> openClip());
+		top.add(openClip);
 		top.add(new JLabel("   Range"));
 		ButtonGroup ranges = new ButtonGroup();
 		addRange(top, ranges, "1 min", 60_000L, false);
@@ -198,6 +216,7 @@ class FpsWindow extends JFrame
 			items.addAll(names);
 			SwingUtilities.invokeLater(() ->
 			{
+				items.addAll(1, clips.keySet());
 				String current = (String) sources.getSelectedItem();
 				adjusting = true;
 				sources.setModel(new DefaultComboBoxModel<>(items.toArray(new String[0])));
@@ -218,6 +237,11 @@ class FpsWindow extends JFrame
 			show(live);
 			return;
 		}
+		if (clips.containsKey(name))
+		{
+			show(clips.get(name));
+			return;
+		}
 		status.setText("Reading " + name + "…");
 		executor.execute(() ->
 		{
@@ -230,6 +254,43 @@ class FpsWindow extends JFrame
 			{
 				log.warn("Black Box could not read recording {}", name, e);
 				SwingUtilities.invokeLater(() -> status.setText("Could not read " + name + ": " + e.getMessage()));
+			}
+		});
+	}
+
+	/** Picks a clip, reads it on the executor, and shows it like a recording; it stays in the Show list. */
+	private void openClip()
+	{
+		Filepath file = source.chooseClip(this);
+		if (file == null)
+		{
+			return;
+		}
+		String name = CLIP + file.getFileName();
+		status.setText("Reading " + file.getFileName() + "…");
+		executor.execute(() ->
+		{
+			try
+			{
+				FpsSeries series = source.loadClip(file);
+				SwingUtilities.invokeLater(() ->
+				{
+					clips.put(name, series);
+					adjusting = true;
+					DefaultComboBoxModel<String> model = (DefaultComboBoxModel<String>) sources.getModel();
+					if (model.getIndexOf(name) < 0)
+					{
+						model.insertElementAt(name, 1);
+					}
+					sources.setSelectedItem(name);
+					adjusting = false;
+					show(series);
+				});
+			}
+			catch (IOException e)
+			{
+				log.warn("Black Box could not read clip {}", file.getFileName(), e);
+				SwingUtilities.invokeLater(() -> status.setText("Could not read " + file.getFileName() + ": " + e.getMessage()));
 			}
 		});
 	}

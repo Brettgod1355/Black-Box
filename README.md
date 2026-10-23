@@ -79,7 +79,8 @@ holds every installed plugin and all of its settings.
 An export reaches back across recordings, so a bug just before a logout is still in it. It holds `events.jsonl`
 (each recording's slice starting with its first lines, so the settings in force are always there),
 `client-log.txt` for the same minutes plus every warning and error since the client started, and a `README.txt`
-saying what they hold and never hold, with the warnings and errors summed up by where they start. Pictures go in
+saying what they hold and never hold, with the warnings and errors summed up by where they start and the frames per
+second summed up: low, mean and high, and the lowest moments with the last thing that happened before each. Pictures go in
 only if **Pictures in clips** is on, and the clip's `README.txt` says whether the chat box is blacked out in them
 (**Hide the chat box**); with it off, they can show your name and other players'. Open any file in a text editor
 first if you want to read it. Attach the
@@ -207,8 +208,10 @@ worth lining up against it: a plugin switched on or off, a setting changed (one 
 notification, a login or logout. The **sidebar** (the chart icon) shows the current reading, the low, mean and high
 over the last 1, 5, 10 and 15 minutes (dimmed until the client has run that long), and a small chart of the last minute. **Click the chart** to open it in its own window: a larger chart, a time range
 from one minute to everything, every marked moment listed on the right (click one to jump to it), and the choice of
-any past recording in the Black Box folder, with a slider to scrub through it. That is how to see what a plugin or a
-setting does to the frame rate: toggle it while watching, or record a session and read it back later.
+any past recording in the Black Box folder, with a slider to scrub through it. **Open a clip…** shows a clip a player
+sent you the same way: pick its zip (or an `events.jsonl`) and its frame rate, plugin and setting changes and marks open
+in the chart; the file is only read, never changed or copied. That is how to see what a plugin or a setting does to the
+frame rate: toggle it while watching, or record a session and read it back later.
 
 In a recording, every `tick` line carries `fps`, and `plugin` and `setting` lines say what was toggled when. A
 `tick` line also has `frames` and `longestFrameMs`, the frames drawn since the last tick and the longest gap

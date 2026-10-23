@@ -1902,6 +1902,37 @@ public class BlackBoxPlugin extends Plugin
 				return FpsSeries.fromRecording(name, gson, in);
 			}
 		}
+
+		/** RuneLite's own file chooser (the Hub's rule: never a JFileChooser), opening in the clips folder. */
+		@Override
+		public Filepath chooseClip(java.awt.Component parent)
+		{
+			Filepath.Chooser chooser = new Filepath.Chooser()
+				.setIsOpen()
+				.setAcceptsFiles()
+				.setDialogTitle("Open a Black Box clip")
+				.addExtensionFilter("Black Box clip (.zip) or events file (.jsonl)", "zip", "jsonl");
+			try
+			{
+				Filepath clips = getPluginDirectory().join(ClipBundle.CLIPS_DIR);
+				if (clips.isDirectory())
+				{
+					chooser.setCurrentDirectory(clips);
+				}
+			}
+			catch (IOException e)
+			{
+				// No folder yet: the chooser opens where it likes.
+			}
+			List<Filepath> chosen = chooser.showDialog(parent);
+			return chosen == null || chosen.isEmpty() ? null : chosen.get(0);
+		}
+
+		@Override
+		public FpsSeries loadClip(Filepath file) throws IOException
+		{
+			return ClipBundle.readSeries(gson, file);
+		}
 	}
 
 	// ---- The world around the boat ----
