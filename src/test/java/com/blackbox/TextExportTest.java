@@ -109,4 +109,22 @@ public class TextExportTest
 		String longValue = new String(new char[100]).replace('\0', 'x');
 		assertEquals(TextPicker.SHOWN, TextPicker.shown(longValue).length());
 	}
+
+	@Test
+	public void thePickerGroupsByPluginAndSearchesByPluginName()
+	{
+		// Owner, 2026-10-23: one closed section per plugin, and a search box by plugin.
+		java.util.List<Desk.TextSetting> settings = java.util.Arrays.asList(
+			new Desk.TextSetting("b.one", "Zebra Helper", "One", "x"),
+			new Desk.TextSetting("a.list", "ground items", "Highlighted items", "coins"),
+			new Desk.TextSetting("b.two", "Zebra Helper", "Two", "y"));
+		java.util.Map<String, java.util.List<Desk.TextSetting>> byPlugin = TextPicker.byPlugin(settings);
+		assertEquals(java.util.Arrays.asList("ground items", "Zebra Helper"), new java.util.ArrayList<>(byPlugin.keySet()));
+		assertEquals(2, byPlugin.get("Zebra Helper").size());
+		assertTrue(TextPicker.matches("Ground Items", "ground"));
+		assertTrue(TextPicker.matches("Ground Items", "  "));
+		assertFalse(TextPicker.matches("Ground Items", "zebra"));
+		assertEquals("+ Ground Items (1 setting)", TextPicker.header("Ground Items", 1, 0, false));
+		assertEquals("- Zebra Helper (2 settings, 1 ticked)", TextPicker.header("Zebra Helper", 2, 1, true));
+	}
 }

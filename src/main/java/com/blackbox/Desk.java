@@ -102,5 +102,8 @@ interface Desk
 
 	void openFolder(Report report);
 
+	/** Opens the folder the exports are written to, so the zip just made can be sent (owner, 2026-10-23). */
+	void openExports(Report report);
+
 	void delete(String name, Report report);
 }

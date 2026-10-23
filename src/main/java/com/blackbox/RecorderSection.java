@@ -58,6 +58,10 @@ class RecorderSection extends JPanel
 	private final JLabel flagTitle = new JLabel("Spot flagged");
 	private final javax.swing.JTextArea flagText = new javax.swing.JTextArea();
 	private final javax.swing.JTextArea status = Wrap.text(" ", null, 4);
+	/** How the report of a finished export begins; the Open export folder button shows under it. */
+	static final String EXPORTED = "Ready to send: ";
+	private final JButton openExports = button("Open export folder", "Open the folder the export was written to",
+		e -> openExports());
 	private final Timer timer;
 
 	RecorderSection(Desk desk)
@@ -140,6 +144,14 @@ class RecorderSection extends JPanel
 		statusRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
 		statusRow.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
 		statusRow.add(status, BorderLayout.CENTER);
+		// After an export, a way straight to the zip (owner, 2026-10-23: "click open folder to view the folder we just
+		// made", "or have it say open export folder").
+		openExports.setVisible(false);
+		JPanel exportsRow = new JPanel(new BorderLayout());
+		exportsRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		exportsRow.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
+		exportsRow.add(openExports, BorderLayout.CENTER);
+		statusRow.add(exportsRow, BorderLayout.SOUTH);
 		add(fullWidth(statusRow));
 
 		timer = new Timer(1000, e -> refresh());
@@ -186,9 +198,15 @@ class RecorderSection extends JPanel
 		}
 	}
 
+	private void openExports()
+	{
+		desk.openExports(this::say);
+	}
+
 	void say(String text)
 	{
 		status.setText(text);
+		openExports.setVisible(text != null && text.startsWith(EXPORTED));
 		status.revalidate();
 	}
 

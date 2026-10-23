@@ -1667,7 +1667,7 @@ public class BlackBoxPlugin extends Plugin
 		{
 			String where = zip.toString();
 			boolean copied = RecorderSection.copy(where);
-			say(report, "Ready to send: " + where + (copied ? " (path copied to the clipboard)" : ""));
+			say(report, RecorderSection.EXPORTED + where + (copied ? " (path copied to the clipboard)" : ""));
 		}
 
 		@Override
@@ -1680,6 +1680,21 @@ public class BlackBoxPlugin extends Plugin
 			catch (IOException e)
 			{
 				say(report, "Could not find the recordings folder: " + e.getMessage());
+			}
+		}
+
+		@Override
+		public void openExports(Report report)
+		{
+			try
+			{
+				Filepath clips = getPluginDirectory().join(ClipBundle.CLIPS_DIR);
+				clips.createDirectories();
+				LinkBrowser.open(clips.toString());
+			}
+			catch (IOException e)
+			{
+				say(report, "Could not find the export folder: " + e.getMessage());
 			}
 		}
 
