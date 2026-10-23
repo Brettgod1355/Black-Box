@@ -22,6 +22,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.Timer;
@@ -244,13 +245,30 @@ class RecorderSection extends JPanel
 		showCard("flag");
 	}
 
+	/**
+	 * The Export menu. Every export leaves typed text settings out without asking; "With text settings…" holds the same
+	 * choices and first asks which to include, for the bug that depends on what a player typed (owner, 2026-10-23: "do
+	 * the middle way").
+	 */
 	private void exportMenu(JComponent at)
 	{
 		JPopupMenu menu = new JPopupMenu();
+		addChoices(menu, false);
+		menu.addSeparator();
+		JMenu withText = new JMenu("With text settings…");
+		withText.setToolTipText("Pick which typed settings (lists, names, links) go into the export");
+		addChoices(withText, true);
+		menu.add(withText);
+		menu.show(at, 0, at.getHeight());
+	}
+
+	/** The export choices, into the menu or the "With text settings…" submenu. */
+	private void addChoices(JComponent menu, boolean withText)
+	{
 		for (int minutes : new int[]{2, 10, 30})
 		{
 			JMenuItem item = new JMenuItem("The last " + minutes + " minutes");
-			item.addActionListener(e -> export(minutes));
+			item.addActionListener(e -> export(minutes, withText));
 			menu.add(item);
 		}
 		JMenuItem custom = new JMenuItem("The last… (choose the minutes)");
@@ -266,7 +284,7 @@ class RecorderSection extends JPanel
 				int minutes = Integer.parseInt(answer.trim());
 				if (minutes > 0 && minutes <= 24 * 60)
 				{
-					export(minutes);
+					export(minutes, withText);
 					return;
 				}
 			}
@@ -277,11 +295,10 @@ class RecorderSection extends JPanel
 			say("Give a number of minutes from 1 to 1440.");
 		});
 		menu.add(custom);
-		menu.addSeparator();
 		JMenuItem today = new JMenuItem("All of today");
 		today.addActionListener(e ->
 		{
-			java.util.Set<String> include = TextPicker.ask(this, desk.textSettings());
+			java.util.Set<String> include = include(withText);
 			if (include == null)
 			{
 				return;
@@ -290,12 +307,17 @@ class RecorderSection extends JPanel
 			desk.exportToday(include, this::say);
 		});
 		menu.add(today);
-		menu.show(at, 0, at.getHeight());
 	}
 
-	private void export(int minutes)
+	/** The text settings to include: none without asking, or the player's picks; null when they cancelled. */
+	private java.util.Set<String> include(boolean withText)
 	{
-		java.util.Set<String> include = TextPicker.ask(this, desk.textSettings());
+		return withText ? TextPicker.ask(this, desk.textSettings()) : java.util.Collections.emptySet();
+	}
+
+	private void export(int minutes, boolean withText)
+	{
+		java.util.Set<String> include = include(withText);
 		if (include == null)
 		{
 			return;

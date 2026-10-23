@@ -105,9 +105,12 @@ class RecordingsSection extends JPanel
 		row.add(top, BorderLayout.NORTH);
 		JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 0));
 		buttons.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		buttons.add(RecorderSection.button("Zip", "Write a zip of this whole recording into the clips folder", e ->
+		// Typed text settings are left out without asking, as with Export; Shift-click to pick some (owner, 2026-10-23).
+		buttons.add(RecorderSection.button("Zip", "Write a zip of this whole recording into the clips folder. "
+			+ "Shift-click to pick typed text settings to include", e ->
 		{
-			java.util.Set<String> include = TextPicker.ask(this, desk.textSettings());
+			boolean withText = (e.getModifiers() & java.awt.event.ActionEvent.SHIFT_MASK) != 0;
+			java.util.Set<String> include = withText ? TextPicker.ask(this, desk.textSettings()) : java.util.Collections.emptySet();
 			if (include == null)
 			{
 				return;
