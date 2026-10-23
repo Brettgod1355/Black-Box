@@ -232,16 +232,46 @@ final class FpsSeries
 	 */
 	static FpsSeries fromRecording(String name, Gson gson, BufferedReader in) throws IOException
 	{
-		FpsSeries series = new FpsSeries(name, Integer.MAX_VALUE, true);
-		long offset = 0;
-		long lastAt = 0;
-		boolean seenSession = false;
+		Builder builder = new Builder(name, gson);
 		String text;
 		while ((text = in.readLine()) != null)
 		{
+			builder.line(text);
+		}
+		return builder.series;
+	}
+
+	/** As above, from lines already in memory (an export's), without joining them into one text. */
+	static FpsSeries fromLines(String name, Gson gson, Iterable<String> lines)
+	{
+		Builder builder = new Builder(name, gson);
+		for (String text : lines)
+		{
+			builder.line(text);
+		}
+		return builder.series;
+	}
+
+	/** Reads a recording one line at a time. */
+	private static final class Builder
+	{
+		private final FpsSeries series;
+		private final Gson gson;
+		private long offset;
+		private long lastAt;
+		private boolean seenSession;
+
+		Builder(String name, Gson gson)
+		{
+			this.series = new FpsSeries(name, Integer.MAX_VALUE, true);
+			this.gson = gson;
+		}
+
+		void line(String text)
+		{
 			if (text.trim().isEmpty())
 			{
-				continue;
+				return;
 			}
 			JsonObject o;
 			try
@@ -250,11 +280,11 @@ final class FpsSeries
 			}
 			catch (JsonSyntaxException e)
 			{
-				continue;
+				return;
 			}
 			if (o == null || !o.has("e") || !o.has("ms"))
 			{
-				continue;
+				return;
 			}
 			String kind = o.get("e").getAsString();
 			if ("session".equals(kind))
@@ -316,7 +346,6 @@ final class FpsSeries
 					break;
 			}
 		}
-		return series;
 	}
 
 	private static String field(JsonObject o, String name)

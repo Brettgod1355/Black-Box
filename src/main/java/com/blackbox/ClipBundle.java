@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -505,7 +504,8 @@ final class ClipBundle
 			}
 			boolean anyPicture = shots.values().stream().anyMatch(list -> !list.isEmpty());
 			out.putNextEntry(new ZipEntry("README.txt"));
-			FpsSeries fps = FpsSeries.fromRecording(fileName, gson, new BufferedReader(new StringReader(String.join("\n", events))));
+			// Read in place: an export of a whole day must not be copied into one text first.
+			FpsSeries fps = FpsSeries.fromLines(fileName, gson, events);
 			out.write(readme(anyPicture, chatHidden, log, FpsSummary.of(fps, ZoneId.systemDefault())).getBytes(StandardCharsets.UTF_8));
 			out.closeEntry();
 			out.putNextEntry(new ZipEntry(SessionLog.EVENTS_FILE));
