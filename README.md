@@ -67,8 +67,9 @@ watching it.
 Click the black box icon in the sidebar. It has two pages, **Recorder** and **Debug** (below). Recording starts by itself when you log in; the card at the top shows
 the red dot, since when, the time so far and the size, and a red line when an export's pictures would show your
 chat (Pictures in clips on, Hide the chat box off), so you can change that before exporting. **Export** saves the last 2, 10 or 30 minutes, a number
-of minutes you choose, or all of today, as one zip to send to a developer (if any plugin has text settings, you first pick which of
-them, if any, to include); **Open folder** opens the folder that
+of minutes you choose, or all of today, as one zip to send to a developer, with typed text settings left out; the same
+choices under **With text settings…** first let you pick which of them to include (Shift-click a recording's **Zip** for
+the same). After an export, **Open export folder** opens the folder with the zip. **Open folder** opens the folder that
 holds the recordings and the exports. **Mark**: press it the moment you see the problem. The time is saved at
 once and the Mark area becomes a small form: say what happened, as much or as little as you like, and press
 Save flag; Cancel drops it, and nothing is written until you save. Export afterwards. Then frames per
@@ -133,9 +134,9 @@ animations (set alight, frozen). Other players are left out of all of these, as 
 
 While recording, Black Box writes a `plugins` line naming every installed plugin with on or off and a `settings`
 line per plugin with every one of its current settings. Typed text (highlight lists, block lists, names, links you
-typed into a plugin) is kept in your own recordings but **left out of every export** unless you tick it: when you
-export, a list shows each plugin's text settings with their values, none ticked, and only what you tick goes into the
-zip, whose README says which. Withheld, always: a setting the plugin marks secret,
+typed into a plugin) is kept in your own recordings but **left out of every export** unless you pick it: Export's
+**With text settings…** lists each plugin's text settings with their values, one closed section per plugin with a search
+by plugin name, none ticked, and only what you tick goes into the zip, whose README says which. Withheld, always: a setting the plugin marks secret,
 and anything that is a webhook, a key, a password or a token, by its key name or by what it looks like, written as
 `<secret>` or `<withheld>`. What a plugin keeps outside its visible settings (hidden items and keys no item
 declares, where plugins store their own state) is under `other`: a plain number, flag, enum, point or size as it
