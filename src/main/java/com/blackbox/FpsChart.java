@@ -47,6 +47,7 @@ class FpsChart extends JComponent
 	private long end;
 	private long cursor = -1;
 	private int hoverX = -1;
+	private int hoverY = -1;
 	private boolean showLabels = true;
 	private Runnable onClick;
 	private LongConsumer onCursor;
@@ -63,6 +64,7 @@ class FpsChart extends JComponent
 			public void mouseMoved(MouseEvent e)
 			{
 				hoverX = e.getX();
+				hoverY = e.getY();
 				repaint();
 			}
 
@@ -70,6 +72,7 @@ class FpsChart extends JComponent
 			public void mouseExited(MouseEvent e)
 			{
 				hoverX = -1;
+				hoverY = -1;
 				repaint();
 			}
 
@@ -308,17 +311,39 @@ class FpsChart extends JComponent
 					text += "  " + shorten(near.get(0).text, 40);
 				}
 				int tw = fm.stringWidth(text) + 8;
-				int bx = Math.min(hoverX + 6, PAD_LEFT + width - tw);
+				int[] box = hoverBox(hoverX, hoverY, tw, PAD_LEFT, PAD_TOP, width, height);
 				g.setColor(new Color(0, 0, 0, 190));
-				g.fillRect(bx, PAD_TOP + 2, tw, 16);
+				g.fillRect(box[0], box[1], tw, HOVER_HEIGHT);
 				g.setColor(Color.WHITE);
-				g.drawString(text, bx + 4, PAD_TOP + 14);
+				g.drawString(text, box[0] + 4, box[1] + 12);
 			}
 		}
 		finally
 		{
 			g.dispose();
 		}
+	}
+
+	/** The reading's box: 16 high, its gap to the pointer 10. */
+	static final int HOVER_HEIGHT = 16;
+	private static final int HOVER_GAP = 10;
+	/** Room under the pointer for the arrow itself, when the box has to go below it. */
+	private static final int POINTER_HEIGHT = 20;
+
+	/**
+	 * Where the hovered reading's box goes, as {x, y}: centered on the pointer and just above it, so the eye does not
+	 * leave the line; below the pointer when there is no room above; always inside the plot.
+	 */
+	static int[] hoverBox(int mouseX, int mouseY, int boxWidth, int left, int top, int width, int height)
+	{
+		int x = Math.max(left, Math.min(mouseX - boxWidth / 2, left + width - boxWidth));
+		int y = mouseY - HOVER_GAP - HOVER_HEIGHT;
+		if (y < top)
+		{
+			y = mouseY + POINTER_HEIGHT;
+		}
+		y = Math.max(top, Math.min(y, top + height - HOVER_HEIGHT));
+		return new int[]{x, y};
 	}
 
 	private static int roundUp(int max)

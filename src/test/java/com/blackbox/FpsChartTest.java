@@ -43,6 +43,23 @@ public class FpsChartTest
 		assertEquals("1:40", FpsChart.clock(100_000, s));
 	}
 
+	@Test
+	public void theHoveredReadingSitsJustAboveThePointer()
+	{
+		// Plot from x 40 to 440, y 10 to 210; a box 80 wide.
+		int[] box = FpsChart.hoverBox(200, 120, 80, 40, 10, 400, 200);
+		assertEquals(160, box[0]);
+		assertEquals(120 - 10 - FpsChart.HOVER_HEIGHT, box[1]);
+		// No room above: just below the pointer's arrow instead.
+		box = FpsChart.hoverBox(200, 15, 80, 40, 10, 400, 200);
+		assertEquals(35, box[1]);
+		// Near the edges the box stays inside the plot.
+		assertEquals(40, FpsChart.hoverBox(45, 120, 80, 40, 10, 400, 200)[0]);
+		assertEquals(360, FpsChart.hoverBox(438, 120, 80, 40, 10, 400, 200)[0]);
+		// A chart too short for either place (the sidebar's, squeezed): kept inside.
+		assertEquals(10 + 30 - FpsChart.HOVER_HEIGHT, FpsChart.hoverBox(200, 20, 80, 40, 10, 400, 30)[1]);
+	}
+
 	private static void paint(FpsChart chart)
 	{
 		BufferedImage image = new BufferedImage(400, 200, BufferedImage.TYPE_INT_ARGB);
