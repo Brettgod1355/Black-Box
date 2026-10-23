@@ -6,6 +6,7 @@
 package com.blackbox;
 
 import java.util.List;
+import java.util.Set;
 
 /** What the sidebar's recorder card and recordings list read and do. Called on the Swing thread; results may arrive later. */
 interface Desk
@@ -22,6 +23,25 @@ interface Desk
 			this.name = name;
 			this.bytes = bytes;
 			this.current = current;
+		}
+	}
+
+	/** A plugin's text setting the player may choose to include in an export. */
+	final class TextSetting
+	{
+		/** {@code group.key}, as the export's filter names it. */
+		final String id;
+		final String plugin;
+		final String name;
+		/** Its value now, shown in the picker so the player sees what they would send. */
+		final String value;
+
+		TextSetting(String id, String plugin, String name, String value)
+		{
+			this.id = id;
+			this.plugin = plugin;
+			this.name = name;
+			this.value = value;
 		}
 	}
 
@@ -65,14 +85,20 @@ interface Desk
 	/** Lists recordings on a worker and hands them back on the Swing thread, newest first. */
 	void recordings(java.util.function.Consumer<List<Entry>> then);
 
-	/** Writes a clip of the last minutes (across recordings) into the clips folder, copies its path, reports. */
-	void clip(int lastMinutes, Report report);
+	/** The installed plugins' text settings that hold something, for the export's picker. Swing thread. */
+	List<TextSetting> textSettings();
 
-	/** Writes every recording of today into one zip. */
-	void exportToday(Report report);
+	/**
+	 * Writes a clip of the last minutes (across recordings) into the clips folder, copies its path, reports. Text
+	 * settings are left out except those in {@code includeText} ({@link TextSetting#id}).
+	 */
+	void clip(int lastMinutes, Set<String> includeText, Report report);
 
-	/** Writes one whole recording into a zip. */
-	void zipRecording(String name, Report report);
+	/** Writes every recording of today into one zip; text settings as for {@link #clip}. */
+	void exportToday(Set<String> includeText, Report report);
+
+	/** Writes one whole recording into a zip; text settings as for {@link #clip}. */
+	void zipRecording(String name, Set<String> includeText, Report report);
 
 	void openFolder(Report report);
 

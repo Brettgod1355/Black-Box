@@ -635,6 +635,10 @@ public class BlackBoxPlugin extends Plugin
 				if (value != null)
 				{
 					o.addProperty("value", value);
+					if (plugin != null && isTextItem(plugin, key))
+					{
+						o.addProperty("text", true);
+					}
 				}
 				session.add(o);
 			}
@@ -1523,24 +1527,56 @@ public class BlackBoxPlugin extends Plugin
 			});
 		}
 
+		/** Every installed plugin's text settings that hold something now, for the export's picker. Swing thread. */
 		@Override
-		public void clip(int lastMinutes, Report report)
+		public List<Desk.TextSetting> textSettings()
+		{
+			List<Desk.TextSetting> out = new ArrayList<>();
+			for (Plugin plugin : pluginManager.getPlugins())
+			{
+				ConfigDescriptor descriptor = descriptorOf(plugin);
+				if (descriptor == null)
+				{
+					continue;
+				}
+				String group = descriptor.getGroup().value();
+				for (ConfigItemDescriptor item : descriptor.getItems())
+				{
+					if (item.getType() != String.class || item.getItem().hidden() || item.getItem().secret())
+					{
+						continue;
+					}
+					String value = configManager.getConfiguration(group, item.key());
+					// A webhook, key or token is withheld whatever the player picks, so it is not offered.
+					if (value == null || value.isEmpty() || SettingsSnapshot.WITHHELD.equals(SettingsSnapshot.text(item.key(), value)))
+					{
+						continue;
+					}
+					out.add(new Desk.TextSetting(group + "." + item.key(), plugin.getName(), item.name(), value));
+				}
+			}
+			out.sort(java.util.Comparator.comparing((Desk.TextSetting t) -> t.plugin).thenComparing(t -> t.name));
+			return out;
+		}
+
+		@Override
+		public void clip(int lastMinutes, Set<String> includeText, Report report)
 		{
 			long now = System.currentTimeMillis();
 			bundle(report, now - lastMinutes * 60_000L, now, false,
-				Names.FOLDER.format(LocalDateTime.now()) + "-last" + lastMinutes + "min.zip");
+				Names.FOLDER.format(LocalDateTime.now()) + "-last" + lastMinutes + "min.zip", includeText);
 		}
 
 		@Override
-		public void exportToday(Report report)
+		public void exportToday(Set<String> includeText, Report report)
 		{
 			long now = System.currentTimeMillis();
 			long midnight = LocalDateTime.now().toLocalDate().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
-			bundle(report, midnight, now, true, LocalDateTime.now().toLocalDate() + "-today.zip");
+			bundle(report, midnight, now, true, LocalDateTime.now().toLocalDate() + "-today.zip", includeText);
 		}
 
 		@Override
-		public void zipRecording(String name, Report report)
+		public void zipRecording(String name, Set<String> includeText, Report report)
 		{
 			executor.execute(() ->
 			{
@@ -1566,7 +1602,8 @@ public class BlackBoxPlugin extends Plugin
 					{
 						current.flush();
 					}
-					Filepath zip = ClipBundle.write(gson, root, sources, 0, config.picturesInClips(), config.hideChat(), name + ".zip", names());
+					Filepath zip = ClipBundle.write(gson, root, sources, 0, config.picturesInClips(), config.hideChat(), name + ".zip", names(),
+						includeText);
 					done(report, zip);
 				}
 				catch (IOException e)
@@ -1578,7 +1615,7 @@ public class BlackBoxPlugin extends Plugin
 		}
 
 		/** Writes the recordings overlapping a window, whole when {@code whole}, else from {@code since}. */
-		private void bundle(Report report, long since, long until, boolean whole, String fileName)
+		private void bundle(Report report, long since, long until, boolean whole, String fileName, Set<String> includeText)
 		{
 			executor.execute(() ->
 			{
@@ -1597,7 +1634,8 @@ public class BlackBoxPlugin extends Plugin
 						say(report, "Nothing recorded in that time.");
 						return;
 					}
-					Filepath zip = ClipBundle.write(gson, root, covering, whole ? 0 : since, config.picturesInClips(), config.hideChat(), fileName, names());
+					Filepath zip = ClipBundle.write(gson, root, covering, whole ? 0 : since, config.picturesInClips(), config.hideChat(), fileName,
+						names(), includeText);
 					done(report, zip);
 				}
 				catch (IOException e)
@@ -1803,6 +1841,12 @@ public class BlackBoxPlugin extends Plugin
 			o.addProperty("plugin", plugin.getName());
 			o.addProperty("group", group);
 			o.add("values", SettingsSnapshot.of(descriptor.getItems(), key -> configManager.getConfiguration(group, key)));
+			// Which of them are typed text (format 11): an export leaves those out unless the player picks them.
+			JsonArray textKeys = SettingsSnapshot.textKeys(descriptor.getItems());
+			if (textKeys.size() > 0)
+			{
+				o.add("text", textKeys);
+			}
 			JsonObject other = otherValues(group, descriptor);
 			if (other.size() > 0)
 			{
@@ -1817,6 +1861,24 @@ public class BlackBoxPlugin extends Plugin
 		core.add("values", new JsonObject());
 		core.add("other", otherValues(RUNELITE_GROUP, null));
 		target.add(core);
+	}
+
+	/** Whether a plugin's setting is typed text (a visible, non-secret String item): left out of exports by default. */
+	private boolean isTextItem(Plugin plugin, String key)
+	{
+		ConfigDescriptor descriptor = descriptorOf(plugin);
+		if (descriptor == null)
+		{
+			return false;
+		}
+		for (ConfigItemDescriptor item : descriptor.getItems())
+		{
+			if (key.equals(item.key()))
+			{
+				return item.getType() == String.class && !item.getItem().hidden() && !item.getItem().secret();
+			}
+		}
+		return false;
 	}
 
 	/** A changed setting's value, withheld like a snapshot would; null when it is hidden or unset. */

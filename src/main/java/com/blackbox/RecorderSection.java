@@ -263,8 +263,13 @@ class RecorderSection extends JPanel
 		JMenuItem today = new JMenuItem("All of today");
 		today.addActionListener(e ->
 		{
+			java.util.Set<String> include = TextPicker.ask(this, desk.textSettings());
+			if (include == null)
+			{
+				return;
+			}
 			say("Writing today's export…");
-			desk.exportToday(this::say);
+			desk.exportToday(include, this::say);
 		});
 		menu.add(today);
 		menu.show(at, 0, at.getHeight());
@@ -272,8 +277,13 @@ class RecorderSection extends JPanel
 
 	private void export(int minutes)
 	{
+		java.util.Set<String> include = TextPicker.ask(this, desk.textSettings());
+		if (include == null)
+		{
+			return;
+		}
 		say("Writing the export…");
-		desk.clip(minutes, this::say);
+		desk.clip(minutes, include, this::say);
 	}
 
 	/** Puts text on the system clipboard; any failure is reported, not thrown. */

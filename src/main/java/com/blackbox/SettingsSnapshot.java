@@ -5,9 +5,14 @@
  */
 package com.blackbox;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import java.util.Collection;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import net.runelite.client.config.ConfigItemDescriptor;
@@ -30,6 +35,104 @@ final class SettingsSnapshot
 
 	private SettingsSnapshot()
 	{
+	}
+
+	/**
+	 * The keys of a plugin's free-text settings (format 11): typed text, where a webhook, a key or a name can sit
+	 * under any key name. Recorded as they are, and left out of an export unless the player picks them. Hidden and
+	 * secret items are not listed: their values never reach a recording as text.
+	 */
+	static JsonArray textKeys(Collection<ConfigItemDescriptor> items)
+	{
+		JsonArray keys = new JsonArray();
+		for (ConfigItemDescriptor item : items)
+		{
+			if (item.getType() == String.class && !item.getItem().hidden() && !item.getItem().secret())
+			{
+				keys.add(item.key());
+			}
+		}
+		return keys;
+	}
+
+	/** What a text setting the player did not pick reads as in an export. */
+	static final String NOT_INCLUDED = "<text, not included>";
+
+	/** A color as RuneLite stores it ({@code #AARRGGBB}): a plain value, safe in an old recording's export. */
+	private static final Pattern COLOR = Pattern.compile("#[0-9A-Fa-f]{6,8}");
+
+	/**
+	 * One events line as an export holds it: on a {@code settings} or {@code setting} line, every text setting's
+	 * value the player did not pick ({@code group.key} in {@code include}) is {@link #NOT_INCLUDED}. From format 11 a
+	 * line says which keys are text ({@code text}); an older line (no {@code text} field; {@code marked} false)
+	 * is judged by its values, and any value that is not a plain number, flag, enum, point or color counts as text.
+	 * Values already withheld stay as they are. Returns the same object, changed in place, or untouched.
+	 */
+	static JsonObject forExport(JsonObject line, boolean marked, Set<String> include)
+	{
+		String kind = line.has("e") ? line.get("e").getAsString() : "";
+		String group = line.has("group") ? line.get("group").getAsString() : "";
+		if ("settings".equals(kind) && line.has("values") && line.get("values").isJsonObject())
+		{
+			JsonObject values = line.getAsJsonObject("values");
+			for (Map.Entry<String, JsonElement> entry : values.entrySet())
+			{
+				boolean text = marked ? listed(line, entry.getKey()) : looksLikeText(entry.getValue());
+				if (text && !withheld(entry.getValue()) && !include.contains(group + "." + entry.getKey()))
+				{
+					entry.setValue(new JsonPrimitive(NOT_INCLUDED));
+				}
+			}
+		}
+		else if ("setting".equals(kind) && line.has("value"))
+		{
+			boolean text = marked
+				? line.has("text") && line.get("text").getAsBoolean()
+				: looksLikeText(line.get("value"));
+			String key = line.has("key") ? line.get("key").getAsString() : "";
+			if (text && !withheld(line.get("value")) && !include.contains(group + "." + key))
+			{
+				line.addProperty("value", NOT_INCLUDED);
+			}
+		}
+		return line;
+	}
+
+	private static boolean listed(JsonObject line, String key)
+	{
+		if (!line.has("text") || !line.get("text").isJsonArray())
+		{
+			return false;
+		}
+		for (JsonElement k : line.getAsJsonArray("text"))
+		{
+			if (key.equals(k.getAsString()))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static boolean looksLikeText(JsonElement value)
+	{
+		if (value == null || !value.isJsonPrimitive())
+		{
+			return false;
+		}
+		String s = value.getAsString();
+		return !s.isEmpty() && !PLAIN_VALUE.matcher(s).matches() && !COLOR.matcher(s).matches();
+	}
+
+	/** A value Black Box already wrote as withheld, secret or hashed. */
+	private static boolean withheld(JsonElement value)
+	{
+		if (value == null || !value.isJsonPrimitive())
+		{
+			return true;
+		}
+		String s = value.getAsString();
+		return s.equals(SECRET) || s.equals(WITHHELD) || s.equals(NOT_INCLUDED) || (s.startsWith("<") && s.contains(" chars, sha256 "));
 	}
 
 	/**

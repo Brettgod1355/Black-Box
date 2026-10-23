@@ -20,10 +20,13 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -44,13 +47,14 @@ final class ClipBundle
 	static final String README = "This is a Black Box clip from RuneLite, for the developer who asked for it.\n"
 		+ "events.jsonl holds: game messages to you, your position and animation, your items, objects and NPCs coming\n"
 		+ "and going and where they were, game values, XP, interfaces opening and closing, your clicks, sound effects,\n"
-		+ "frames per second, which plugins were installed and switched, every plugin's settings (webhooks, keys and\n"
-		+ "secrets withheld), and the ground around you. Each recording's slice starts with its first lines, so the\n"
+		+ "frames per second, which plugins were installed and switched, every plugin's settings (typed text only if you\n"
+		+ "chose it; webhooks, keys and secrets never), and the ground around you. Each recording's slice starts with its first lines, so the\n"
 		+ "settings in force are always in the file.\n"
 		+ "client-log.txt holds the client's own log lines for the same minutes, plus every warning and error since the\n"
 		+ "client started, as RuneLite's client.log would, caught inside the client with your name and home folder replaced.\n"
 		+ "%LOG%"
 		+ "%FPS%"
+		+ "%TEXT%"
 		+ "names.txt gives RuneLite's name for every varbit, interface, sound, animation, NPC, object and item id the\n"
 		+ "events mention.\n"
 		+ "%PICTURES%"
@@ -67,7 +71,7 @@ final class ClipBundle
 	 */
 	static String readme(boolean pictures, boolean chatHidden)
 	{
-		return readme(pictures, chatHidden, java.util.Collections.emptyList());
+		return readme(pictures, chatHidden, Collections.emptyList());
 	}
 
 	/** As above, with the warnings and errors of the clip's client log summed up (the lines of {@code client-log.txt}). */
@@ -78,6 +82,24 @@ final class ClipBundle
 
 	/** As above, with the clip's frames per second summed up ({@link FpsSummary}). */
 	static String readme(boolean pictures, boolean chatHidden, List<String> log, String fps)
+	{
+		return readme(pictures, chatHidden, log, fps, Collections.emptySet());
+	}
+
+	/** What the README says about text settings: left out, except the ones the player picked at export. */
+	static String textLine(Set<String> included)
+	{
+		if (included.isEmpty())
+		{
+			return "Text settings (anything typed into a plugin's settings: lists, names, links) are left out and read "
+				+ SettingsSnapshot.NOT_INCLUDED + ".\n";
+		}
+		return "Text settings are left out except the ones you chose to include: " + String.join(", ", new TreeSet<>(included))
+			+ ".\n";
+	}
+
+	/** As above, saying which text settings the player chose to include. */
+	static String readme(boolean pictures, boolean chatHidden, List<String> log, String fps, Set<String> included)
 	{
 		String shots;
 		String never;
@@ -101,7 +123,7 @@ final class ClipBundle
 			never = "Apart from what the pictures show, it never holds: other players' chat,";
 		}
 		return README.replace("%PICTURES%", shots).replace("%NEVER%", never).replace("%LOG%", logSummary(log))
-			.replace("%FPS%", fps);
+			.replace("%FPS%", fps).replace("%TEXT%", textLine(included));
 	}
 	/** How many groups the summary lists before saying "and N more". */
 	static final int SUMMARY_GROUPS = 25;
@@ -464,9 +486,61 @@ final class ClipBundle
 		return write(gson, root, sources, since, pictures, true, fileName, null);
 	}
 
-	/** As above, with the names table for a {@code names.txt} (skipped when null). */
+	/** As above, with the names table for a {@code names.txt} (skipped when null); no text setting included. */
 	static Filepath write(Gson gson, Filepath root, List<Source> sources, long since, boolean pictures, boolean chatHidden,
 		String fileName, IdNames names) throws IOException
+	{
+		return write(gson, root, sources, since, pictures, chatHidden, fileName, names, Collections.emptySet());
+	}
+
+	/**
+	 * One recording's lines as an export holds them: text settings the player did not pick ({@code group.key})
+	 * written as {@link SettingsSnapshot#NOT_INCLUDED}. A recording of format 11 or later marks which keys are text;
+	 * an older one is judged by its values. Only settings and setting lines are parsed; the rest pass as they are.
+	 */
+	static List<String> forExport(Gson gson, List<String> lines, Set<String> include)
+	{
+		List<String> out = new ArrayList<>(lines.size());
+		boolean marked = false;
+		for (String text : lines)
+		{
+			boolean session = text.contains("\"e\":\"session\"");
+			if (!session && !text.contains("\"e\":\"setting"))
+			{
+				out.add(text);
+				continue;
+			}
+			JsonObject o;
+			try
+			{
+				o = gson.fromJson(text, JsonObject.class);
+			}
+			catch (JsonSyntaxException e)
+			{
+				// Not a line Black Box wrote; an export never carries what it cannot judge.
+				continue;
+			}
+			if (o == null)
+			{
+				continue;
+			}
+			if (session)
+			{
+				marked = o.has("format") && o.get("format").getAsInt() >= TEXT_MARKED_FORMAT;
+				out.add(text);
+				continue;
+			}
+			out.add(SettingsSnapshot.forExport(o, marked, include).toString());
+		}
+		return out;
+	}
+
+	/** The first format whose settings and setting lines say which keys are text. */
+	static final int TEXT_MARKED_FORMAT = 11;
+
+	/** As above, with the text settings the player picked to include ({@code group.key}). */
+	static Filepath write(Gson gson, Filepath root, List<Source> sources, long since, boolean pictures, boolean chatHidden,
+		String fileName, IdNames names, Set<String> includeText) throws IOException
 	{
 		Filepath clips = root.join(CLIPS_DIR);
 		clips.createDirectories();
@@ -484,7 +558,7 @@ final class ClipBundle
 				{
 					try (BufferedReader in = eventsFile.openBufferedReader())
 					{
-						List<String> lines = trim(gson, in, cutoff);
+						List<String> lines = forExport(gson, trim(gson, in, cutoff), includeText);
 						events.addAll(lines);
 						if (pictures)
 						{
@@ -506,7 +580,8 @@ final class ClipBundle
 			out.putNextEntry(new ZipEntry("README.txt"));
 			// Read in place: an export of a whole day must not be copied into one text first.
 			FpsSeries fps = FpsSeries.fromLines(fileName, gson, events);
-			out.write(readme(anyPicture, chatHidden, log, FpsSummary.of(fps, ZoneId.systemDefault())).getBytes(StandardCharsets.UTF_8));
+			out.write(readme(anyPicture, chatHidden, log, FpsSummary.of(fps, ZoneId.systemDefault()), includeText)
+				.getBytes(StandardCharsets.UTF_8));
 			out.closeEntry();
 			out.putNextEntry(new ZipEntry(SessionLog.EVENTS_FILE));
 			for (String line : events)

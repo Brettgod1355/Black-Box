@@ -36,9 +36,10 @@ final class SessionLog
 	 * sweep (FORMAT.md, Versions): more on the session, tick, plugins, settings, setting, click, chat and notify
 	 * lines; profile, playerOptions, window, menu, hint, overlays, infoboxes, varps, scene, itemAdd/itemGone, loot
 	 * and party lines. 10: the Debug page's {@code debug} line and its tests' lines (projectile, npcInfo, npcHealth,
-	 * npcFight, widgets, scripts, varcs, mouse, timing).
+	 * npcFight, widgets, scripts, varcs, mouse, timing). 11: {@code text} on settings (the free-text keys) and setting
+	 * lines, so an export can leave typed text out unless the player picks it.
 	 */
-	static final int FORMAT = 10;
+	static final int FORMAT = 11;
 	static final String EVENTS_FILE = "events.jsonl";
 	static final String SHOTS_DIR = "shots";
 

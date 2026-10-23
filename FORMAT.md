@@ -10,7 +10,7 @@ Every line in `events.jsonl` has three fields: `e`, the kind of line; `tick`, th
 (the client counts about 1.67 a second; a login resets nothing, the count keeps rising); and `ms`, milliseconds
 since the recording began. A tool reads lines by `e` and ignores kinds it does not know.
 
-The first line's `format` says which version of this document the file follows. This is format **10**.
+The first line's `format` says which version of this document the file follows. This is format **11**.
 
 Privacy holds on every line: other players never appear, the player's own name is written as `<you>`, nothing
 is written while the bank PIN keypad shows except the `pause` and `resume` lines that bracket it.
@@ -64,7 +64,8 @@ A plugin was switched on or off: `name`, `on`.
 
 ### `setting`
 A setting changed: `group` (the plugin's config group), `key`, `plugin` (the plugin's name, when known),
-`value` (the new value, withheld as `<secret>` or `<withheld>` under the rules in `settings`). From format 9 a hidden
+`value` (the new value, withheld as `<secret>` or `<withheld>` under the rules in `settings`). From format 11 a setting
+that is typed text has `text` `true`; in an export its value is `<text, not included>` unless the player picked it. From format 9 a hidden
 or undeclared key and a key of RuneLite's own `runelite` group carry their value too, under the rules of `other`
 below; a key the plugin does not declare is written as its length and hash like `other`'s keys, and a key of the
 `runelite` group as it is.
@@ -90,7 +91,10 @@ passphrase or friends' names, so only a plain value is written as it is: a numbe
 abc123def456>`, the length and the first 12 hex characters of its SHA-256, which shows that it changed and compares
 between recordings without saying what it is; a key that is a webhook, key, password or token is `<withheld>`. A
 key a hidden item declares is written as it is; a key no item declares can hold a name (Friend Notes keeps
-`note_<friend>`) and is written as its length and hash too. A last `settings` line with `plugin` `RuneLite` and group `runelite` holds RuneLite's
+`note_<friend>`) and is written as its length and hash too. From format 11, `text`: the keys of `values` that are typed text (a plugin's String settings: lists, names, links).
+They are recorded as they are, on the player's own computer; an **export** writes each as `<text, not included>`
+unless the player ticked it in the export's list. An export of an older recording judges by the value instead: anything
+not a plain number, flag, enum, point, size or color counts as text. A last `settings` line with `plugin` `RuneLite` and group `runelite` holds RuneLite's
 own settings this way, its keys as they are (overlay and plugin names): overlay positions, notification defaults, the installed Plugin Hub plugins. It is written
 again after a settings-profile switch.
 
@@ -348,4 +352,4 @@ RuneLite's own `settings` line; values of hidden and undeclared keys on `setting
 and friend notices on `chat`; `how` and `focused` on `notify`; `profile`, `playerOptions`, `window`, `menu`, `hint`,
 `overlays`, `infoboxes`, `varps`, `scene`, `itemAdd`, `itemGone`, `loot`, `party`, `partyJoin`, `partyLeave`.
 10. The Debug page: `debug`, `projectile`, `npcInfo`, `npcHealth`, `npcFight`, `widgets`, `scripts`, `varcs`,
-`mouse`, `timing`.
+`mouse`, `timing`. 11. `text` on `settings` and `setting`; exports leave typed text out unless the player picks it.

@@ -127,6 +127,6 @@ public class FpsSummaryTest
 	public void theClipReadmeCarriesTheSummary()
 	{
 		String readme = ClipBundle.readme(false, true, java.util.Collections.emptyList(), "Frames per second over these minutes: low 1\n");
-		assertTrue(readme, readme.contains("Frames per second over these minutes: low 1\nnames.txt"));
+		assertTrue(readme, readme.contains("Frames per second over these minutes: low 1\nText settings"));
 	}
 }

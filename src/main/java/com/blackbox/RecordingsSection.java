@@ -107,8 +107,13 @@ class RecordingsSection extends JPanel
 		buttons.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 		buttons.add(RecorderSection.button("Zip", "Write a zip of this whole recording into the clips folder", e ->
 		{
+			java.util.Set<String> include = TextPicker.ask(this, desk.textSettings());
+			if (include == null)
+			{
+				return;
+			}
 			recorder.say("Writing the zip…");
-			desk.zipRecording(entry.name, recorder::say);
+			desk.zipRecording(entry.name, include, recorder::say);
 		}));
 		buttons.add(RecorderSection.button("Open", "Open the recording's folder", e -> desk.openFolder(recorder::say)));
 		if (!entry.current)
