@@ -110,9 +110,8 @@ final class ClipBundle
 		}
 		else if (chatHidden)
 		{
-			shots = "shots/ holds pictures of the game view from these minutes. The chat box is blacked out in them, but a\n"
-				+ "notice drawn outside it (a friend logging in, split private chat) and anything else on screen can still\n"
-				+ "show: look at them before sending.\n";
+			shots = "shots/ holds pictures of the game view from these minutes. The chat box and split private chat are\n"
+				+ "blacked out in them, but anything else on screen can still show: look at them before sending.\n";
 			never = "Apart from what the pictures show, it never holds: other players' chat,";
 		}
 		else

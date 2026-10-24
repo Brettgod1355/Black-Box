@@ -192,7 +192,7 @@ public class ClipBundleTest
 		assertFalse(none.contains("shots/"));
 
 		String hidden = ClipBundle.readme(true, true);
-		assertTrue(hidden.contains("The chat box is blacked out in them"));
+		assertTrue(hidden.contains("The chat box and split private chat are"));
 		assertTrue(hidden.contains("Apart from what the pictures show"));
 
 		String open = ClipBundle.readme(true, false);

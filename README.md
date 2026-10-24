@@ -35,7 +35,8 @@ miss and refused the wrong fixes before they shipped. The worked example below t
   happen, with your name and home folder replaced.
 - It never records the login screen. A recording starts once you are logged in and ends when you log out,
   and a screenshot whose frame is drawn after that, on the login screen, while logging in, hopping worlds
-  or with the connection lost, is thrown away.
+  or with the connection lost, is thrown away. Nor the welcome screen right after logging in: no screenshot is
+  saved while it shows.
 
 ## How a developer uses it
 
@@ -237,7 +238,7 @@ the last tick waited on the Swing thread and on the client thread.
 | Screenshots: Every | 0 (off) | A screenshot this often; 0 leaves pictures to Mark and notifications. |
 | Screenshots: On notifications | on | A screenshot whenever any plugin sends a notification. |
 | Screenshots: Pictures in clips | off | Put the clipped minutes' pictures into a clip. |
-| Screenshots: Hide the chat box | on | Blacks out the chat box in every screenshot. |
+| Screenshots: Hide the chat box | on | Blacks out the chat box in every screenshot, and the split private chat lines above it (private messages, friends logging in) when the game shows them there. |
 | Screenshots: Width | 960 pixels | Screenshots are shrunk to at most this width. |
 | Cleanup: Keep for (days) | 7 | Recordings older than this are deleted. |
 | Cleanup: Size limit (MB) | 500 | Then the oldest are deleted until the rest fit. |

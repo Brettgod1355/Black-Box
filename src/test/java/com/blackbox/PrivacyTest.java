@@ -81,6 +81,14 @@ public class PrivacyTest
 	}
 
 	@Test
+	public void theWelcomeScreenIsKnown()
+	{
+		assertTrue(Privacy.isWelcomeScreen(InterfaceID.WELCOME_SCREEN));
+		assertTrue(Privacy.isWelcomeScreen(378));
+		assertFalse(Privacy.isWelcomeScreen(InterfaceID.BANKPIN_KEYPAD));
+	}
+
+	@Test
 	public void framesAreKeptOnlyInTheGameWorld()
 	{
 		assertTrue(Privacy.mayKeepFrame(GameState.LOGGED_IN));

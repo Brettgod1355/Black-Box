@@ -64,6 +64,15 @@ final class Privacy
 	}
 
 	/**
+	 * The welcome screen after logging in (owner, 2026-10-24: "drop it"). No screenshot is saved while it shows;
+	 * everything else is recorded as usual.
+	 */
+	static boolean isWelcomeScreen(int groupId)
+	{
+		return groupId == InterfaceID.WELCOME_SCREEN;
+	}
+
+	/**
 	 * Whether a frame drawn in this game state may be saved as a screenshot: only while logged in or loading
 	 * the next area. A screenshot asked for just before logging out can be drawn on the login screen, which
 	 * shows the character's name; that frame, and any other drawn on the login screen, while logging in,

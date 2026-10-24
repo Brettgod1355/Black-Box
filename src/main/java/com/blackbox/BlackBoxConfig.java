@@ -107,7 +107,8 @@ public interface BlackBoxConfig extends Config
 	@ConfigItem(
 		keyName = "hideChat",
 		name = "Hide the chat box",
-		description = "Black out the chat box in every screenshot, so other players' names and messages are never saved.",
+		description = "Black out the chat box, and split private chat above it, in every screenshot, so other players' names and"
+			+ " messages are never saved.",
 		section = SCREENSHOTS,
 		position = 4
 	)

@@ -245,6 +245,8 @@ public class BlackBoxPlugin extends Plugin
 	 * Read by the frame listener, which may not run on the client thread.
 	 */
 	private volatile boolean pinPause;
+	/** The welcome screen after login is showing: no screenshot is saved. Read by the frame listener. */
+	private volatile boolean welcomeShowing;
 	/**
 	 * After every other subscriber: RuneLite calls higher priorities first, and this is far below any a plugin
 	 * uses, so by the time the overhead text handler runs the other plugins have had their turn at the same event.
@@ -731,6 +733,8 @@ public class BlackBoxPlugin extends Plugin
 	{
 		int fps = client.getFPS();
 		live.add(System.currentTimeMillis(), fps);
+		// The welcome screen's load and close events cover this; a tick re-check catches anything they miss.
+		welcomeShowing = welcomeOnScreen();
 		if (session == null)
 		{
 			return;
@@ -1106,6 +1110,10 @@ public class BlackBoxPlugin extends Plugin
 		{
 			setPinPause(true);
 		}
+		if (Privacy.isWelcomeScreen(event.getGroupId()))
+		{
+			welcomeShowing = true;
+		}
 	}
 
 	@Subscribe
@@ -1114,6 +1122,10 @@ public class BlackBoxPlugin extends Plugin
 		if (Privacy.isPinKeypad(event.getGroupId()))
 		{
 			setPinPause(false);
+		}
+		if (Privacy.isWelcomeScreen(event.getGroupId()))
+		{
+			welcomeShowing = false;
 		}
 		if (session != null)
 		{
@@ -2174,6 +2186,13 @@ public class BlackBoxPlugin extends Plugin
 		return keypad != null && !keypad.isHidden();
 	}
 
+	/** Whether the welcome screen after login is on screen. Client thread only. */
+	private boolean welcomeOnScreen()
+	{
+		Widget welcome = client.getWidget(InterfaceID.WelcomeScreen.UNIVERSE);
+		return welcome != null && !welcome.isHidden();
+	}
+
 	/** Starts or ends the pause, writing a line when it changes. Client thread only. */
 	private void setPinPause(boolean paused)
 	{
@@ -2205,7 +2224,7 @@ public class BlackBoxPlugin extends Plugin
 	{
 		SessionLog target = session;
 		long now = System.currentTimeMillis();
-		if (target == null || pinPause || (shotPending && now - shotRequestedAt < SHOT_GIVE_UP_MILLIS))
+		if (target == null || pinPause || welcomeShowing || (shotPending && now - shotRequestedAt < SHOT_GIVE_UP_MILLIS))
 		{
 			return;
 		}
@@ -2217,17 +2236,19 @@ public class BlackBoxPlugin extends Plugin
 		o.addProperty("file", file);
 		o.addProperty("reason", reason);
 		target.add(o);
-		Rectangle chat = config.hideChat() ? chatBounds() : null;
+		List<Rectangle> hide = config.hideChat() ? hiddenAreas() : Collections.emptyList();
 		int canvasWidth = client.getCanvasWidth();
 		int maxWidth = config.shotWidth();
 		drawManager.requestNextFrameListener(image ->
 		{
 			try
 			{
-				// The keypad may have opened between the request and this frame, or the player logged out (the
-				// recording then ended and the frame may show the login screen): such a frame is never saved.
-				boolean keep = !pinPause && session == target && Privacy.mayKeepFrame(client.getGameState());
-				BufferedImage small = keep ? shrink(image, maxWidth, chat, canvasWidth) : null;
+				// The keypad or the welcome screen may have opened between the request and this frame, or the
+				// player logged out (the recording then ended and the frame may show the login screen): such a
+				// frame is never saved.
+				boolean keep = !pinPause && !welcomeShowing && session == target
+					&& Privacy.mayKeepFrame(client.getGameState());
+				BufferedImage small = keep ? shrink(image, maxWidth, hide, canvasWidth) : null;
 				if (small != null)
 				{
 					executor.execute(() -> writeShot(target, file, small));
@@ -2246,17 +2267,17 @@ public class BlackBoxPlugin extends Plugin
 	 */
 	private void capture(java.util.function.Consumer<BufferedImage> then)
 	{
-		if (pinPause)
+		if (pinPause || welcomeShowing)
 		{
 			return;
 		}
-		Rectangle chat = config.hideChat() ? chatBounds() : null;
+		List<Rectangle> hide = config.hideChat() ? hiddenAreas() : Collections.emptyList();
 		int canvasWidth = client.getCanvasWidth();
 		int maxWidth = config.shotWidth();
 		drawManager.requestNextFrameListener(image ->
 		{
-			boolean keep = !pinPause && Privacy.mayKeepFrame(client.getGameState());
-			BufferedImage small = keep ? shrink(image, maxWidth, chat, canvasWidth) : null;
+			boolean keep = !pinPause && !welcomeShowing && Privacy.mayKeepFrame(client.getGameState());
+			BufferedImage small = keep ? shrink(image, maxWidth, hide, canvasWidth) : null;
 			if (small != null)
 			{
 				clientThread.invoke(() -> then.accept(small));
@@ -2264,15 +2285,55 @@ public class BlackBoxPlugin extends Plugin
 		});
 	}
 
-	/** Where the chat box is on the canvas, or null when it is not showing. */
-	private Rectangle chatBounds()
+	/**
+	 * What Hide the chat box blacks out, on the canvas: the chat box, and each line of split private chat drawn
+	 * above it (private messages and friends logging in; owner, 2026-10-24: "do it but only if the hide the chat
+	 * box is enabled"). Only lines with text, so an empty split-chat layer covers nothing. Client thread only.
+	 */
+	private List<Rectangle> hiddenAreas()
 	{
+		List<Rectangle> areas = new ArrayList<>();
 		Widget chat = client.getWidget(InterfaceID.Chatbox.UNIVERSE);
-		return chat == null || chat.isHidden() ? null : chat.getBounds();
+		if (chat != null && !chat.isHidden())
+		{
+			areas.add(chat.getBounds());
+		}
+		Widget split = client.getWidget(InterfaceID.PmChat.CONTAINER);
+		if (split != null && !split.isHidden())
+		{
+			addTextLines(split, areas);
+		}
+		return areas;
 	}
 
-	/** The frame at no more than {@code maxWidth} across, with the chat box painted black. */
-	static BufferedImage shrink(Image image, int maxWidth, Rectangle chat, int canvasWidth)
+	/** The bounds of every showing widget under this one that holds text. */
+	private static void addTextLines(Widget parent, List<Rectangle> areas)
+	{
+		for (Widget[] children : new Widget[][]{parent.getStaticChildren(), parent.getDynamicChildren(),
+			parent.getNestedChildren()})
+		{
+			if (children == null)
+			{
+				continue;
+			}
+			for (Widget w : children)
+			{
+				if (w == null || w.isHidden())
+				{
+					continue;
+				}
+				String text = w.getText();
+				if (text != null && !text.isEmpty())
+				{
+					areas.add(w.getBounds());
+				}
+				addTextLines(w, areas);
+			}
+		}
+	}
+
+	/** The frame at no more than {@code maxWidth} across, with the given areas painted black. */
+	static BufferedImage shrink(Image image, int maxWidth, List<Rectangle> hide, int canvasWidth)
 	{
 		int width = image.getWidth(null);
 		int height = image.getHeight(null);
@@ -2289,13 +2350,16 @@ public class BlackBoxPlugin extends Plugin
 		{
 			g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 			g.drawImage(image, 0, 0, w, h, null);
-			if (chat != null && canvasWidth > 0)
+			if (canvasWidth > 0)
 			{
 				// Widget bounds are in game pixels; the frame may be stretched, then it is shrunk here.
 				double k = (width / (double) canvasWidth) * scale;
 				g.setColor(Color.BLACK);
-				g.fillRect((int) Math.floor(chat.x * k), (int) Math.floor(chat.y * k),
-					(int) Math.ceil(chat.width * k) + 1, (int) Math.ceil(chat.height * k) + 1);
+				for (Rectangle r : hide)
+				{
+					g.fillRect((int) Math.floor(r.x * k), (int) Math.floor(r.y * k),
+						(int) Math.ceil(r.width * k) + 1, (int) Math.ceil(r.height * k) + 1);
+				}
 			}
 		}
 		finally
