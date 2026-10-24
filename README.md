@@ -210,7 +210,7 @@ planned once the Plugin Hub says a plugin may change the client's log level.
 Black Box keeps the client's frames per second from the moment it loads, recording or not, and marks the moments
 worth lining up against it: a plugin switched on or off, a setting changed (one a player can see in a plugin's panel; hidden ones are where plugins keep their own state), a mark, a
 notification, a login or logout. The **sidebar** (the chart icon) shows the current reading, the low, mean and high
-over the last 1, 5, 10 and 15 minutes (dimmed until the client has run that long), and a small chart of the last minute. **Click the chart** to open it in its own window: a larger chart, a time range
+over the last 1, 5, 10 and 15 minutes (dimmed until the client has run that long), and a small chart of the last minute. **Click the chart** to open the **Black Box: FPS window**: a larger chart, a time range
 from one minute to everything, every marked moment listed on the right (click one to jump to it and show only that one
 on the chart; **Show all** brings back the rest), and the choice of
 any past recording in the Black Box folder, with a slider to scrub through it. To look closer, click and hold on the

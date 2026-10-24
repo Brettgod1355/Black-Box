@@ -89,7 +89,12 @@ class FpsWindow extends JFrame
 
 	FpsWindow(FpsSeries live, Source source, ScheduledExecutorService executor)
 	{
-		super("Black Box: frames per second");
+		super("Black Box: FPS window");
+		// Black Box's own icon in the title bar and taskbar, not Java's (owner, 2026-10-24: "can we make it the black box
+		// icon?"): the sidebar's 16 px one and the Hub's 48 px one, so either size is sharp.
+		setIconImages(java.util.Arrays.asList(
+			net.runelite.client.util.ImageUtil.loadImageResource(FpsWindow.class, "sidebar.png"),
+			net.runelite.client.util.ImageUtil.loadImageResource(FpsWindow.class, "window.png")));
 		this.live = live;
 		this.source = source;
 		this.executor = executor;
