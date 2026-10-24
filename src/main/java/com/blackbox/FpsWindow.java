@@ -74,6 +74,8 @@ class FpsWindow extends JFrame
 	private final JSlider scrub = new JSlider(0, 1000, 1000);
 	private final ButtonGroup ranges = new ButtonGroup();
 	private final JButton resetZoom = new JButton("Reset zoom");
+	/** Back from one picked event to all of them. */
+	private final JButton showAll = new JButton("Show all");
 	/** The range picked before a zoom, to go back to. */
 	private JToggleButton rangeButton;
 	private long rangeMillis = 5 * 60_000L;
@@ -125,6 +127,15 @@ class FpsWindow extends JFrame
 		addRange(top, ranges, "1 h", 60 * 60_000L, false);
 		addRange(top, ranges, "All", 0, false);
 		top.add(resetZoom);
+		showAll.setToolTipText("Show every event on the chart again");
+		showAll.addActionListener(e ->
+		{
+			chart.setOnly(null);
+			notes.clearSelection();
+			showAll.setVisible(false);
+		});
+		showAll.setVisible(false);
+		top.add(showAll);
 		JCheckBox labels = new JCheckBox("Labels", true);
 		labels.addActionListener(e ->
 		{
@@ -138,11 +149,14 @@ class FpsWindow extends JFrame
 
 		notes.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		notes.setCellRenderer(new NoteRenderer());
+		notes.setToolTipText("Click one to show only it on the chart; Show all brings back the rest");
 		notes.addListSelectionListener(e ->
 		{
 			FpsSeries.Note note = notes.getSelectedValue();
 			if (!e.getValueIsAdjusting() && note != null)
 			{
+				chart.setOnly(note);
+				showAll.setVisible(true);
 				jumpTo(note.at);
 			}
 		});
@@ -322,6 +336,8 @@ class FpsWindow extends JFrame
 		shown = series;
 		chart.setSeries(series);
 		chart.setCursor(-1);
+		chart.setOnly(null);
+		showAll.setVisible(false);
 		if (series.isRelative())
 		{
 			chart.setFollow(false);

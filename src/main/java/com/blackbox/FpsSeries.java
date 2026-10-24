@@ -115,6 +115,56 @@ final class FpsSeries
 		}
 	}
 
+	/** The last game state seen other than LOADING, to tell a scene reload from a login. */
+	private String lastState;
+
+	/**
+	 * A game state, as the chart says it: LOADING then LOGGED_IN while already in the game is one "Scene reloaded" (a
+	 * GPU plugin switched, a loading line crossed), "Logged in" only from the login screen, "Logged out" back to it
+	 * (owner, 2026-10-24: "i did not log in/out when turning on the 117 hd plugin"). The recording keeps every state.
+	 */
+	synchronized void state(long at, String state)
+	{
+		if ("LOADING".equals(state))
+		{
+			return;
+		}
+		String text = stateText(lastState, state);
+		lastState = state;
+		if (text != null)
+		{
+			note(at, "state", text);
+		}
+	}
+
+	/** The words for a game state after {@code previous} (LOADING never counts), or null for one not worth a mark. */
+	static String stateText(String previous, String state)
+	{
+		switch (state == null ? "" : state)
+		{
+			case "LOGGED_IN":
+				if ("LOGGED_IN".equals(previous))
+				{
+					return "Scene reloaded";
+				}
+				return "HOPPING".equals(previous) ? null : "Logged in";
+			case "LOGIN_SCREEN":
+				return "LOGGED_IN".equals(previous) || "HOPPING".equals(previous) || "CONNECTION_LOST".equals(previous)
+					? "Logged out" : null;
+			case "HOPPING":
+				return "Hopping worlds";
+			case "CONNECTION_LOST":
+				return "Connection lost";
+			case "LOGGING_IN":
+			case "STARTING":
+			case "UNKNOWN":
+			case "":
+				return null;
+			default:
+				return state;
+		}
+	}
+
 	synchronized void note(long at, String kind, String text)
 	{
 		notes.add(new Note(at, kind, text == null ? "" : text));
@@ -351,7 +401,7 @@ final class FpsSeries
 					series.note(at, kind, field(o, "text"));
 					break;
 				case "state":
-					series.note(at, kind, field(o, "state"));
+					series.state(at, field(o, "state"));
 					break;
 				case "session":
 					series.note(at, kind, "Recording started" + (o.has("started") ? " " + field(o, "started") : ""));

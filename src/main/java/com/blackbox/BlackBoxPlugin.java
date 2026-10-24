@@ -687,7 +687,7 @@ public class BlackBoxPlugin extends Plugin
 	public void onGameStateChanged(GameStateChanged event)
 	{
 		GameState state = event.getGameState();
-		live.note(System.currentTimeMillis(), "state", state.name());
+		live.state(System.currentTimeMillis(), state.name());
 		if (session != null)
 		{
 			JsonObject o = line("state");

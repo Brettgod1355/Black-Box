@@ -51,6 +51,10 @@ class FpsChart extends JComponent
 	private boolean showLabels = true;
 	private Runnable onClick;
 	private LongConsumer onCursor;
+	/** The one note to show, picked in the window's list; null shows them all. */
+	private FpsSeries.Note only;
+	/** Notes closer together than this many pixels are drawn as one line with one label. */
+	static final int BUNCH_PIXELS = 6;
 	/** Called with [from, to] when the player drags across the chart; null where dragging does nothing (the sidebar). */
 	private java.util.function.BiConsumer<Long, Long> onZoom;
 	/** Where a drag began and where it is now, in pixels; -1 when not dragging. */
@@ -234,6 +238,48 @@ class FpsChart extends JComponent
 		return Math.max(PAD_LEFT, Math.min(PAD_LEFT + plotWidth(), x));
 	}
 
+	/** Shows only this note (picked in the list), or every note again with null (owner, 2026-10-24). */
+	void setOnly(FpsSeries.Note note)
+	{
+		only = note;
+		repaint();
+	}
+
+	FpsSeries.Note getOnly()
+	{
+		return only;
+	}
+
+	/**
+	 * Notes in time order, bunched where each lands within {@code pixels} of the one before: at startup every
+	 * plugin says "on" in the same second, and fifty labels on one line cannot be read (owner, 2026-10-24).
+	 */
+	static List<List<FpsSeries.Note>> bunch(List<FpsSeries.Note> notes, long from, long to, int width, int pixels)
+	{
+		List<FpsSeries.Note> sorted = new java.util.ArrayList<>(notes);
+		sorted.sort(java.util.Comparator.comparingLong(n -> n.at));
+		List<List<FpsSeries.Note>> out = new java.util.ArrayList<>();
+		int lastX = Integer.MIN_VALUE;
+		for (FpsSeries.Note note : sorted)
+		{
+			int x = xOf(note.at, from, to, width);
+			if (out.isEmpty() || x - lastX > pixels)
+			{
+				out.add(new java.util.ArrayList<>());
+			}
+			out.get(out.size() - 1).add(note);
+			lastX = x;
+		}
+		return out;
+	}
+
+	/** A bunch's label: its first note, and how many more there are. */
+	static String bunchLabel(List<FpsSeries.Note> bunch)
+	{
+		String first = bunch.get(0).text;
+		return bunch.size() == 1 ? first : first + " +" + (bunch.size() - 1) + " more";
+	}
+
 	/** Called with the moment under a click, for scrubbing. */
 	void setOnCursor(LongConsumer onCursor)
 	{
@@ -352,18 +398,22 @@ class FpsChart extends JComponent
 					g.fillOval(firstX - 2, yOf(samples.get(0).fps, top, height) - 2, 4, 4);
 				}
 			}
-			// Notes.
+			// Notes: only the one picked in the list, else all, bunched where they crowd together.
+			List<FpsSeries.Note> shownNotes = only == null ? series.notes(from, to)
+				: only.at >= from && only.at <= to ? java.util.Collections.singletonList(only) : java.util.Collections.emptyList();
 			int row = 0;
-			for (FpsSeries.Note note : series.notes(from, to))
+			for (List<FpsSeries.Note> bunch : bunch(shownNotes, from, to, width, BUNCH_PIXELS))
 			{
+				FpsSeries.Note note = bunch.get(0);
 				int x = xOf(note.at, from, to, width);
 				g.setColor(noteColor(note.kind));
-				g.setStroke(DASH);
+				g.setStroke(bunch.size() > 1 ? new BasicStroke(2f) : DASH);
 				g.drawLine(x, PAD_TOP, x, PAD_TOP + height);
 				g.setStroke(new BasicStroke(1f));
 				if (showLabels)
 				{
-					String label = shorten(note.text, 22);
+					String label = bunch.size() == 1 ? shorten(note.text, 22)
+						: shorten(note.text, 16) + " +" + (bunch.size() - 1) + " more";
 					int y = PAD_TOP + 10 + (row % 3) * 11;
 					g.drawString(label, Math.min(x + 3, PAD_LEFT + width - fm.stringWidth(label)), y);
 					row++;
@@ -394,10 +444,12 @@ class FpsChart extends JComponent
 				g.drawLine(hoverX, PAD_TOP, hoverX, PAD_TOP + height);
 				g.setStroke(new BasicStroke(1f));
 				String text = (fps < 0 ? "-" : fps + " fps") + "  " + clock(at, series);
-				List<FpsSeries.Note> near = series.notes(at - 1500, at + 1500);
+				List<FpsSeries.Note> near = only != null ? (Math.abs(only.at - at) <= 1500
+					? java.util.Collections.singletonList(only) : java.util.Collections.emptyList())
+					: series.notes(at - 1500, at + 1500);
 				if (!near.isEmpty())
 				{
-					text += "  " + shorten(near.get(0).text, 40);
+					text += "  " + shorten(near.get(0).text, 40) + (near.size() > 1 ? " +" + (near.size() - 1) + " more" : "");
 				}
 				int tw = fm.stringWidth(text) + 8;
 				int[] box = hoverBox(hoverX, hoverY, tw, PAD_LEFT, PAD_TOP, width, height);
@@ -441,7 +493,7 @@ class FpsChart extends JComponent
 		return ((max + step - 1) / step) * step;
 	}
 
-	private int xOf(long at, long from, long to, int width)
+	private static int xOf(long at, long from, long to, int width)
 	{
 		return PAD_LEFT + (int) Math.round((at - from) / (double) (to - from) * width);
 	}

@@ -86,4 +86,42 @@ public class FpsChartTest
 		assertTrue("around the drag", tiny[0] <= 10_000 && tiny[1] >= 10_400);
 		assertNull("off the series", FpsChart.zoomSpan(-1, 10_000, FpsChart.MIN_ZOOM_MILLIS));
 	}
+
+	@Test
+	public void gameStatesReadAsSceneReloadsLoginsAndLogouts()
+	{
+		// Owner, 2026-10-24: "i did not log in/out when turning on the 117 hd plugin".
+		assertEquals("Scene reloaded", FpsSeries.stateText("LOGGED_IN", "LOGGED_IN"));
+		assertEquals("Logged in", FpsSeries.stateText("LOGGING_IN", "LOGGED_IN"));
+		assertEquals("Logged in", FpsSeries.stateText(null, "LOGGED_IN"));
+		assertEquals("Logged out", FpsSeries.stateText("LOGGED_IN", "LOGIN_SCREEN"));
+		assertNull("the client starting at the login screen", FpsSeries.stateText(null, "LOGIN_SCREEN"));
+		assertNull("back in after a hop: the hop already said so", FpsSeries.stateText("HOPPING", "LOGGED_IN"));
+		FpsSeries series = new FpsSeries("test", 100);
+		series.state(1_000, "LOADING");
+		series.state(1_100, "LOGGED_IN");
+		series.state(5_000, "LOADING");
+		series.state(5_300, "LOGGED_IN");
+		java.util.List<FpsSeries.Note> notes = series.notes(0, 10_000);
+		assertEquals(2, notes.size());
+		assertEquals("Logged in", notes.get(0).text);
+		assertEquals("Scene reloaded", notes.get(1).text);
+	}
+
+	@Test
+	public void notesThatCrowdTogetherAreOneBunch()
+	{
+		// Fifty plugins "on" in the same second at startup, then one setting a minute later.
+		java.util.List<FpsSeries.Note> notes = new java.util.ArrayList<>();
+		for (int i = 0; i < 50; i++)
+		{
+			notes.add(new FpsSeries.Note(1_000 + i * 10, "plugin", "Plugin " + i + " on"));
+		}
+		notes.add(new FpsSeries.Note(61_000, "setting", "hd.colorFilter = NONE"));
+		java.util.List<java.util.List<FpsSeries.Note>> bunches = FpsChart.bunch(notes, 0, 120_000, 1000, FpsChart.BUNCH_PIXELS);
+		assertEquals(2, bunches.size());
+		assertEquals(50, bunches.get(0).size());
+		assertEquals("Plugin 0 on +49 more", FpsChart.bunchLabel(bunches.get(0)));
+		assertEquals("hd.colorFilter = NONE", FpsChart.bunchLabel(bunches.get(1)));
+	}
 }
