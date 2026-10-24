@@ -39,7 +39,7 @@ final class SessionLog
 	 * npcFight, widgets, scripts, varcs, mouse, timing). 11: {@code text} on settings (the free-text keys) and setting
 	 * lines, so an export can leave typed text out unless the player picks it.
 	 */
-	static final int FORMAT = 11;
+	static final int FORMAT = 12;
 	static final String EVENTS_FILE = "events.jsonl";
 	static final String SHOTS_DIR = "shots";
 

@@ -631,6 +631,11 @@ public class BlackBoxPlugin extends Plugin
 				if (plugin != null)
 				{
 					o.addProperty("plugin", plugin.getName());
+					if (!shown(plugin, key))
+					{
+						// Where the plugin keeps its own state: kept, but not a change the player made (format 12).
+						o.addProperty("hidden", true);
+					}
 				}
 				if (value != null)
 				{

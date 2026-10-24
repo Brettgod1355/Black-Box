@@ -242,6 +242,17 @@ final class FpsSeries
 	}
 
 	/** As above, from lines already in memory (an export's), without joining them into one text. */
+	/** A setting line for a key the player cannot see in the plugin's panel. */
+	static boolean isHiddenSetting(JsonObject o)
+	{
+		if (o.has("hidden") && o.get("hidden").getAsBoolean())
+		{
+			return true;
+		}
+		String key = o.has("key") && !o.get("key").isJsonNull() ? o.get("key").getAsString() : "";
+		return key.startsWith("<") && key.contains("sha256");
+	}
+
 	static FpsSeries fromLines(String name, Gson gson, Iterable<String> lines)
 	{
 		Builder builder = new Builder(name, gson);
@@ -319,7 +330,13 @@ final class FpsSeries
 					series.note(at, kind, field(o, "name") + (o.has("on") && o.get("on").getAsBoolean() ? " on" : " off"));
 					break;
 				case "setting":
-					series.note(at, kind, field(o, "group") + "." + field(o, "key") + (o.has("value") ? " = " + field(o, "value") : ""));
+					// Not a hidden or undeclared key: a plugin saving its own state is no change the player made, and
+					// would bury the chart and the clip's frame-rate summary (owner, 2026-10-23). Format 12 says so;
+					// older recordings show it by the key written as a fingerprint.
+					if (!isHiddenSetting(o))
+					{
+						series.note(at, kind, field(o, "group") + "." + field(o, "key") + (o.has("value") ? " = " + field(o, "value") : ""));
+					}
 					break;
 				case "watch":
 					series.note(at, kind, "Watching " + (o.has("plugins") ? o.get("plugins").getAsJsonArray().size() : 0) + " plugin(s)");
