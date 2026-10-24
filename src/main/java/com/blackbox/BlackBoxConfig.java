@@ -95,7 +95,7 @@ public interface BlackBoxConfig extends Config
 		keyName = "picturesInClips",
 		name = "Pictures in clips",
 		description = "Put the pictures of the clipped minutes into a clip. Off by default: a picture shows whatever was on "
-			+ "screen, other players' names over their heads included (the chat box is blacked out).",
+			+ "screen, other players' names over their heads included, and the chat box unless Hide the chat box is on.",
 		section = SCREENSHOTS,
 		position = 3
 	)
@@ -114,7 +114,9 @@ public interface BlackBoxConfig extends Config
 	)
 	default boolean hideChat()
 	{
-		return true;
+		// Off (owner, 2026-10-24): pictures leave the computer only with Pictures in clips on, and the card and the
+		// clip's README warn when they would show the chat.
+		return false;
 	}
 
 	@ConfigItem(

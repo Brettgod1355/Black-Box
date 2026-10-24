@@ -23,8 +23,8 @@ miss and refused the wrong fixes before they shipped. The worked example below t
 - It never talks to the internet. It writes files to its own folder and nothing else.
 - It never records other players. Public, private, clan, friends and trade chat are left out, and so are
   broadcasts, other players' overhead text, hits on other players, and the names on clicks aimed at
-  players. Your own name is replaced by `<you>` wherever the game writes it. Screenshots black out the chat
-  box by default.
+  players. Your own name is replaced by `<you>` wherever the game writes it. Screenshots go into a clip only if
+  you turn on **Pictures in clips**, and **Hide the chat box** blacks out the chat box and split private chat in them.
 - It never records your bank PIN. While the bank PIN keypad is on screen, no clicks, game values or
   screenshots are recorded, so neither a clicked button nor a picture of the shuffled keypad ends up in a
   recording. It never listens to your keyboard either, except for the Mark hotkey, so a PIN typed on the
@@ -238,7 +238,7 @@ the last tick waited on the Swing thread and on the client thread.
 | Screenshots: Every | 0 (off) | A screenshot this often; 0 leaves pictures to Mark and notifications. |
 | Screenshots: On notifications | on | A screenshot whenever any plugin sends a notification. |
 | Screenshots: Pictures in clips | off | Put the clipped minutes' pictures into a clip. |
-| Screenshots: Hide the chat box | on | Blacks out the chat box in every screenshot, and the split private chat lines above it (private messages, friends logging in) when the game shows them there. |
+| Screenshots: Hide the chat box | off | Blacks out the chat box in every screenshot, and the split private chat lines above it (private messages, friends logging in) when the game shows them there. |
 | Screenshots: Width | 960 pixels | Screenshots are shrunk to at most this width. |
 | Cleanup: Keep for (days) | 7 | Recordings older than this are deleted. |
 | Cleanup: Size limit (MB) | 500 | Then the oldest are deleted until the rest fit. |
