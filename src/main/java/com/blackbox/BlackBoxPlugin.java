@@ -2306,7 +2306,10 @@ public class BlackBoxPlugin extends Plugin
 		return areas;
 	}
 
-	/** The bounds of every showing widget under this one that holds text. */
+	/** Game pixels added around each split-chat line, so no part of a letter shows. */
+	private static final int LINE_PAD = 4;
+
+	/** The bounds of every showing widget under this one that holds text, a little larger. */
 	private static void addTextLines(Widget parent, List<Rectangle> areas)
 	{
 		for (Widget[] children : new Widget[][]{parent.getStaticChildren(), parent.getDynamicChildren(),
@@ -2325,7 +2328,10 @@ public class BlackBoxPlugin extends Plugin
 				String text = w.getText();
 				if (text != null && !text.isEmpty())
 				{
-					areas.add(w.getBounds());
+					// Letters hang past a line's bounds (descenders showed below it in a live picture, 2026-10-24).
+					Rectangle line = w.getBounds();
+					line.grow(LINE_PAD, LINE_PAD);
+					areas.add(line);
 				}
 				addTextLines(w, areas);
 			}
