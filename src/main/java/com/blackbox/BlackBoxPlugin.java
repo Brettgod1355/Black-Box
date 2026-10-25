@@ -27,12 +27,14 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Consumer;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.swing.SwingUtilities;
@@ -156,6 +158,9 @@ public class BlackBoxPlugin extends Plugin
 
 	/** The version written into every recording's first line. */
 	static final String VERSION = "0.3";
+
+	/** The Wilderness level as the game writes it on screen (the first line of its HUD text). */
+	static final Pattern WILDERNESS_LEVEL = Pattern.compile("Level: (\\d+)");
 
 	private static final DateTimeFormatter SESSION_NAME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 	private static final long BYTES_PER_MEGABYTE = 1024L * 1024;
@@ -728,6 +733,43 @@ public class BlackBoxPlugin extends Plugin
 
 	// ---- What gets recorded ----
 
+	/**
+	 * Format 13: the Wilderness level the game shows on screen, while it shows. {@code wildy} is the number;
+	 * {@code wildyText} is written instead when the text is not a plain "Level: N" (a PvP world's range, say). Only
+	 * the first line is read: RuneLite's Combat Level plugin adds the attackable combat range below it.
+	 */
+	private void wildernessLevel(JsonObject o)
+	{
+		Widget level = client.getWidget(InterfaceID.PvpIcons.WILDERNESSLEVEL);
+		if (level == null || level.isHidden() || level.getText() == null || level.getText().isEmpty())
+		{
+			return;
+		}
+		String first = wildernessText(level.getText());
+		Integer number = wildernessLevelOf(first);
+		if (number != null)
+		{
+			o.addProperty("wildy", number);
+		}
+		else
+		{
+			o.addProperty("wildyText", first);
+		}
+	}
+
+	/** The first line of the Wilderness level HUD text, tags taken out. */
+	static String wildernessText(String text)
+	{
+		return Text.removeTags(text.split("<br>", 2)[0]).trim();
+	}
+
+	/** The level in a "Level: N" line, or null when the line says something else. */
+	static Integer wildernessLevelOf(String firstLine)
+	{
+		Matcher m = WILDERNESS_LEVEL.matcher(firstLine);
+		return m.matches() ? Integer.valueOf(m.group(1)) : null;
+	}
+
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
@@ -798,6 +840,7 @@ public class BlackBoxPlugin extends Plugin
 			{
 				o.addProperty("instance", true);
 			}
+			wildernessLevel(o);
 		}
 		o.addProperty("frames", frameClock.frames());
 		o.addProperty("longestFrameMs", frameClock.longestGapMs());
