@@ -28,7 +28,7 @@ public class RetentionTest
 	@Test
 	public void twoRecordingsStartedInTheSameSecondGetTheirOwnFolders()
 	{
-		// Two clients sharing one RuneLite folder, logging in within the same second (owner, 2026-10-22).
+		// Two clients sharing one RuneLite folder, logging in within the same second.
 		java.util.Set<String> made = new java.util.HashSet<>();
 		BlackBoxPlugin.FolderClaim disk = made::add;
 		assertEquals("2026-10-22_16-06-59", BlackBoxPlugin.claimName("2026-10-22_16-06-59", disk));

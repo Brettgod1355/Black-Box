@@ -208,8 +208,7 @@ class FpsChart extends JComponent
 	}
 
 	/**
-	 * Click and hold, drag across the chart, let go: called with the span dragged over, to zoom into it (owner,
-	 * 2026-10-23: "click and hold to highlight an area then it will then zoom into that area to make it fill").
+	 * Click and hold, drag across the chart, let go: called with the span dragged over, to zoom into it.
 	 */
 	void setOnZoom(java.util.function.BiConsumer<Long, Long> onZoom)
 	{
@@ -238,7 +237,7 @@ class FpsChart extends JComponent
 		return Math.max(PAD_LEFT, Math.min(PAD_LEFT + plotWidth(), x));
 	}
 
-	/** Shows only this note (picked in the list), or every note again with null (owner, 2026-10-24). */
+	/** Shows only this note (picked in the list), or every note again with null. */
 	void setOnly(FpsSeries.Note note)
 	{
 		only = note;
@@ -252,7 +251,7 @@ class FpsChart extends JComponent
 
 	/**
 	 * Notes in time order, bunched where each lands within {@code pixels} of the one before: at startup every
-	 * plugin says "on" in the same second, and fifty labels on one line cannot be read (owner, 2026-10-24).
+	 * plugin says "on" in the same second, and fifty labels on one line cannot be read.
 	 */
 	static List<List<FpsSeries.Note>> bunch(List<FpsSeries.Note> notes, long from, long to, int width, int pixels)
 	{

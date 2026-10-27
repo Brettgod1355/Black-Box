@@ -78,8 +78,7 @@ final class TextPicker
 
 	/**
 	 * The dialog's body: the explanation, a search box, and one section per plugin, closed at first, with an unticked box
-	 * per setting inside, filling {@code boxes} (owner, 2026-10-23: "each plugin has their own dropdown box that are all
-	 * collapsed by default and add a searchbar to search by plugin").
+	 * per setting inside, filling {@code boxes}.
 	 */
 	static JPanel content(List<Desk.TextSetting> settings, Map<JCheckBox, Desk.TextSetting> boxes)
 	{

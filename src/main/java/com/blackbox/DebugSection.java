@@ -80,7 +80,7 @@ class DebugSection extends JPanel
 		JLabel tests = new JLabel("Tests");
 		tests.setFont(FontManager.getRunescapeBoldFont());
 		tests.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		// Select all / Clear all sits on the heading's row, above the list it works on (owner, 2026-10-22).
+		// Select all / Clear all sits on the heading's row, above the list it works on.
 		select = RecorderSection.button("Select all", "Tick every test, or untick them all once all are ticked", e ->
 		{
 			controls.setTests(DebugTest.afterSelect(ticked()));

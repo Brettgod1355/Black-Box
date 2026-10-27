@@ -113,7 +113,7 @@ public class TextExportTest
 	@Test
 	public void thePickerGroupsByPluginAndSearchesByPluginName()
 	{
-		// Owner, 2026-10-23: one closed section per plugin, and a search box by plugin.
+		// One closed section per plugin, and a search box by plugin.
 		java.util.List<Desk.TextSetting> settings = java.util.Arrays.asList(
 			new Desk.TextSetting("b.one", "Zebra Helper", "One", "x"),
 			new Desk.TextSetting("a.list", "ground items", "Highlighted items", "coins"),

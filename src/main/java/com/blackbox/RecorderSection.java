@@ -145,8 +145,7 @@ class RecorderSection extends JPanel
 		statusRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
 		statusRow.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
 		statusRow.add(status, BorderLayout.CENTER);
-		// After an export, a way straight to the zip (owner, 2026-10-23: "click open folder to view the folder we just
-		// made", "or have it say open export folder").
+		// After an export, a way straight to the folder holding the zip.
 		openExports.setVisible(false);
 		JPanel exportsRow = new JPanel(new BorderLayout());
 		exportsRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -247,8 +246,7 @@ class RecorderSection extends JPanel
 
 	/**
 	 * The Export menu. Every export leaves typed text settings out without asking; "With text settings…" holds the same
-	 * choices and first asks which to include, for the bug that depends on what a player typed (owner, 2026-10-23: "do
-	 * the middle way").
+	 * choices and first asks which to include, for the bug that depends on what a player typed.
 	 */
 	private void exportMenu(JComponent at)
 	{

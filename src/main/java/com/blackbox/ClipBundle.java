@@ -401,7 +401,7 @@ final class ClipBundle
 
 	/**
 	 * The most recent recording, for "the last N minutes" when nothing was recorded in them: the player was logged out
-	 * when they noticed the problem (owner, 2026-10-23). Null when there is none.
+	 * when they noticed the problem. Null when there is none.
 	 */
 	static Source latest(List<Source> all)
 	{

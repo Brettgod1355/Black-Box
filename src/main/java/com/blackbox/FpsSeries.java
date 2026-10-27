@@ -120,8 +120,8 @@ final class FpsSeries
 
 	/**
 	 * A game state, as the chart says it: LOADING then LOGGED_IN while already in the game is one "Scene reloaded" (a
-	 * GPU plugin switched, a loading line crossed), "Logged in" only from the login screen, "Logged out" back to it
-	 * (owner, 2026-10-24: "i did not log in/out when turning on the 117 hd plugin"). The recording keeps every state.
+	 * GPU plugin switched, a loading line crossed), "Logged in" only from the login screen, "Logged out" back to it.
+	 * The recording keeps every state.
 	 */
 	synchronized void state(long at, String state)
 	{
@@ -381,7 +381,7 @@ final class FpsSeries
 					break;
 				case "setting":
 					// Not a hidden or undeclared key: a plugin saving its own state is no change the player made, and
-					// would bury the chart and the clip's frame-rate summary (owner, 2026-10-23). Format 12 says so;
+					// would bury the chart and the clip's frame-rate summary. Format 12 says so;
 					// older recordings show it by the key written as a fingerprint.
 					if (!isHiddenSetting(o))
 					{

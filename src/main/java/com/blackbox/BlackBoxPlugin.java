@@ -453,7 +453,7 @@ public class BlackBoxPlugin extends Plugin
 	/**
 	 * The recording's folder name: the start time, or with "-2", "-3" and so on when a folder of that name is already
 	 * there. Two clients sharing one RuneLite folder that log in within the same second would otherwise write into
-	 * one recording (owner, 2026-10-22). Making the folder is the claim, so the two cannot both win. When the folder
+	 * one recording. Making the folder is the claim, so the two cannot both win. When the folder
 	 * cannot be made at all, the plain name is used and opening the recording reports the error.
 	 */
 	static String claimName(String base, FolderClaim claim)
@@ -611,7 +611,7 @@ public class BlackBoxPlugin extends Plugin
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
-		// Which setting changed, never its value: a value can be a webhook link or an API key (WORKING_RULES §4).
+		// Which setting changed, never its value: a value can be a webhook link or an API key.
 		// Not a game value, so the bank PIN pause does not apply; a setting says nothing about the keypad.
 		String group = event.getGroup();
 		String key = event.getKey();
@@ -1840,7 +1840,7 @@ public class BlackBoxPlugin extends Plugin
 
 	/**
 	 * Clears what the sidebar's "Reporting on" section stored (the plugin list under {@code watched} and named sets
-	 * under {@code set.}): recordings cover every plugin and nothing is picked any more (owner, 2026-10-22).
+	 * under {@code set.}): recordings cover every plugin and nothing is picked any more.
 	 */
 	private void forgetReportingOn()
 	{
@@ -2330,8 +2330,8 @@ public class BlackBoxPlugin extends Plugin
 
 	/**
 	 * What Hide the chat box blacks out, on the canvas: the chat box, and each line of split private chat drawn
-	 * above it (private messages and friends logging in; owner, 2026-10-24: "do it but only if the hide the chat
-	 * box is enabled"). Only lines with text, so an empty split-chat layer covers nothing. Client thread only.
+	 * above it (private messages and friends logging in). Only lines with text, so an empty split-chat layer covers
+	 * nothing. Client thread only.
 	 */
 	private List<Rectangle> hiddenAreas()
 	{
@@ -2371,7 +2371,7 @@ public class BlackBoxPlugin extends Plugin
 				String text = w.getText();
 				if (text != null && !text.isEmpty())
 				{
-					// Letters hang past a line's bounds (descenders showed below it in a live picture, 2026-10-24).
+					// Letters hang past a line's bounds: descenders would show below it.
 					Rectangle line = w.getBounds();
 					line.grow(LINE_PAD, LINE_PAD);
 					areas.add(line);
@@ -2527,7 +2527,7 @@ public class BlackBoxPlugin extends Plugin
 		target.add(o);
 	}
 
-	// ---- Format 9: the cheap batch from the Hub sweep (research/hub-hard-bugs-2026-10-21.md) ----
+	// ---- Format 9: the cheap batch from the Hub sweep ----
 
 	/** RuneLite's own config group. */
 	private static final String RUNELITE_GROUP = "runelite";

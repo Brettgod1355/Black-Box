@@ -204,7 +204,7 @@ public class ClipBundleTest
 	@Test
 	public void theMostRecentRecordingIsTheOneThatEndedLast()
 	{
-		// Logged out, then pressed Export: the last minutes come from the recording that ended last (owner, 2026-10-23).
+		// Logged out, then pressed Export: the last minutes come from the recording that ended last.
 		ClipBundle.Source morning = new ClipBundle.Source("2026-10-23_09-00-00", null, 1_000L, 60_000L);
 		ClipBundle.Source evening = new ClipBundle.Source("2026-10-23_18-32-31", null, 500_000L, 120_000L);
 		assertEquals("2026-10-23_18-32-31", ClipBundle.latest(java.util.Arrays.asList(evening, morning)).name);

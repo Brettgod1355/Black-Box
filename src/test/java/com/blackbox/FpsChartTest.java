@@ -77,7 +77,7 @@ public class FpsChartTest
 	@Test
 	public void aDragZoomsToTheSpanDraggedOverAtLeastTwoSeconds()
 	{
-		// Owner, 2026-10-23: click and hold, drag, let go: that span fills the chart.
+		// Click and hold, drag, let go: that span fills the chart.
 		long[] span = FpsChart.zoomSpan(50_000, 20_000, FpsChart.MIN_ZOOM_MILLIS);
 		assertEquals(20_000, span[0]);
 		assertEquals(50_000, span[1]);
@@ -90,7 +90,7 @@ public class FpsChartTest
 	@Test
 	public void gameStatesReadAsSceneReloadsLoginsAndLogouts()
 	{
-		// Owner, 2026-10-24: "i did not log in/out when turning on the 117 hd plugin".
+		// Switching a GPU plugin reloads the scene; it is not a login.
 		assertEquals("Scene reloaded", FpsSeries.stateText("LOGGED_IN", "LOGGED_IN"));
 		assertEquals("Logged in", FpsSeries.stateText("LOGGING_IN", "LOGGED_IN"));
 		assertEquals("Logged in", FpsSeries.stateText(null, "LOGGED_IN"));

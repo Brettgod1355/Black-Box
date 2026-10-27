@@ -22,7 +22,7 @@ import net.runelite.client.config.ConfigItemDescriptor;
  * an item the plugin marks {@code secret} is written as {@code <secret>}, a hidden item is left out, and a
  * free-text value that is a webhook, a key or a token (by its key name or by what it looks like) is written as
  * {@code <withheld>}. Everything else is written as the client stores it, free text included: highlight lists,
- * block lists and names typed into a plugin are exactly what a developer needs to see (owner, 2026-10-20).
+ * block lists and names typed into a plugin are exactly what a developer needs to see.
  */
 final class SettingsSnapshot
 {

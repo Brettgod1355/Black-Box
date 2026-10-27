@@ -64,8 +64,8 @@ final class Privacy
 	}
 
 	/**
-	 * The welcome screen after logging in (owner, 2026-10-24: "drop it"). No screenshot is saved while it shows;
-	 * everything else is recorded as usual.
+	 * The welcome screen after logging in. No screenshot is saved while it shows; everything else is recorded as
+	 * usual.
 	 */
 	static boolean isWelcomeScreen(int groupId)
 	{

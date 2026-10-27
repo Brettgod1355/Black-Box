@@ -114,7 +114,7 @@ public interface BlackBoxConfig extends Config
 	)
 	default boolean hideChat()
 	{
-		// Off (owner, 2026-10-24): pictures leave the computer only with Pictures in clips on, and the card and the
+		// Off: pictures leave the computer only with Pictures in clips on, and the card and the
 		// clip's README warn when they would show the chat.
 		return false;
 	}

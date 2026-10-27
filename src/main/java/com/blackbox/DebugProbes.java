@@ -292,8 +292,8 @@ class DebugProbes
 				return;
 			}
 			NPC npc = (NPC) event.getSource();
-			// Crewmates on a hook report "interacting with nothing" every tick (Original RS2, 2026-10-22: 20,000
-			// npcFight lines in 25 minutes, all "none"); only a change is news.
+			// Crewmates on a hook report "interacting with nothing" every tick (thousands of npcFight lines an hour, all
+			// "none"); only a change is news.
 			if (target(event.getTarget()).equals(fighting.put(npc.getIndex(), target(event.getTarget()))))
 			{
 				return;
@@ -470,7 +470,7 @@ class DebugProbes
 	 */
 	/**
 	 * Adds a name, skipping none: a friend who never changed name has no previous name, and the sorted set refuses null
-	 * (it threw on every tick with Interface contents on, stopping the tests after it; Original RS2, 2026-10-22).
+	 * (it threw on every tick with Interface contents on, stopping the tests after it).
 	 */
 	static void addName(Set<String> into, String name)
 	{

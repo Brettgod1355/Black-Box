@@ -10,8 +10,8 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Which old recordings to delete, so the folder never grows without bound (owner, 2026-10-13: screenshots
- * must not take up a lot of room). First everything older than the age limit, then the oldest until the
+ * Which old recordings to delete, so the folder never grows without bound (screenshots take room). First
+ * everything older than the age limit, then the oldest until the
  * rest fits the size limit. The recording in progress is never deleted. Pure, so it is tested without files.
  */
 final class Retention

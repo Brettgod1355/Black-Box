@@ -74,7 +74,7 @@ class BlackBoxPanel extends PluginPanel
 		debugTab.setText(debugTabText(debug.isOn()));
 	}
 
-	/** The Debug tab says whether Debug is on or off, both ways (owner, 2026-10-22). */
+	/** The Debug tab says whether Debug is on or off, both ways. */
 	static String debugTabText(boolean on)
 	{
 		return on ? "Debug (on)" : "Debug (off)";

@@ -39,7 +39,7 @@ public class FpsSummaryTest
 		}
 		lines.append("{\"e\":\"plugin\",\"tick\":1,\"ms\":120000,\"name\":\"Ground Items\",\"on\":true}\n");
 		lines.append("{\"e\":\"mark\",\"tick\":1,\"ms\":360000,\"text\":\"stutter here\"}\n");
-		// A plugin saving its own state just before each dip: never the cause (owner, 2026-10-23). Format 12 marks it
+		// A plugin saving its own state just before each dip: never the cause. Format 12 marks it
 		// hidden; an older recording shows it by the fingerprinted key.
 		lines.append("{\"e\":\"setting\",\"tick\":1,\"ms\":129000,\"group\":\"cargofull\",\"key\":\"crewTextHidingCarried\",\"hidden\":true,\"value\":\"true\"}\n");
 		lines.append("{\"e\":\"setting\",\"tick\":1,\"ms\":365000,\"group\":\"cargofull\",\"key\":\"<6 chars, sha256 39d71c6361e5>\",\"value\":\"154\"}\n");
