@@ -35,7 +35,7 @@ turn the plugin off.
 - Pictures of your screen **only if you turn on Pictures in clips**. They show whatever was on screen; turn on
   **Hide the chat box** to black out the chat box and split private chat in them.
 
-**Never in it, in any setting:**
+**Never in the recording itself (the text files), in any setting:**
 
 - **Other players.** Public, private, clan, friends and trade chat, broadcasts, other players' overhead text, hits
   on other players and names on clicks aimed at players are not recorded. Your own name is written as `<you>`.
@@ -47,6 +47,10 @@ turn the plugin off.
 - **Your account.** No login name, no account id, no password. The login screen and the welcome screen after
   logging in are never in a picture.
 - **Anything outside Black Box's own folder.** It never reads RuneLite's log file or any other file.
+
+**Pictures are different:** they show your screen as it was. With **Hide the chat box** off, that includes the chat
+box, so other players' messages and your own name can be in them. Pictures go into a zip only with **Pictures in
+clips** on, and the zip's `README.txt` says whether the chat was blacked out. Look at them before you send.
 
 ## What it never does
 
@@ -103,8 +107,9 @@ Paste this into the issue:
 
 > Install Black Box from the Plugin Hub and open its sidebar (the black box icon). It records on its own. Make
 > the problem happen, press Mark, say what you saw and press Save flag, then press Export…, pick "The last 10
-> minutes", and attach the zip. It holds no chat from other players, no bank PIN, no typed text settings and no
-> pictures unless you turn those on; the README inside lists exactly what it holds.
+> minutes", and attach the zip. Its text files hold no chat from other players, no bank PIN and no typed text
+> settings. Pictures go in only if you turn them on, and then show your screen as it was; the README inside says
+> exactly what it holds.
 
 There is no live link between you and the player, and nothing in the zip needs the game open to read.
 

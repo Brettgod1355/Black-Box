@@ -15,14 +15,15 @@ assistant) or replays it in their own tests. It never sends anything anywhere.
 
 Flag any change that weakens one of these, even when it looks harmless:
 
-- **Other players are never recorded:** their chat, overhead text, hits, names in menu targets or click targets.
+- **Other players are never written to a recording's lines:** their chat, overhead text, hits, names in menu targets or
+  click targets. (Pictures show the screen as it is; Hide the chat box blacks out the chat in them.)
   The player's own name becomes `<you>`. Friend login notices keep their moment, never the name.
-- **The bank PIN is never recorded.** While the keypad (interface 213) shows, no clicks, game values, positions or
+- **The bank PIN is never recorded.** While the keypad (interface 213) shows, no clicks, game values, NPC positions or
   screenshots, and a frame that arrives after it opens is dropped. No key listener beyond the Mark hotkey. Any new
   event kind must respect the keypad pause.
 - **No login screen or welcome screen in a screenshot.** Frames are kept only while logged in or loading, and not
   while the welcome screen after login shows.
-- **Hide the chat box** (on by default) blacks out the chat box and split private chat lines in screenshots.
+- **Hide the chat box** (off by default) blacks out the chat box and split private chat lines in screenshots.
 - **Settings:** an item marked `secret`, and any value or key that looks like a webhook, key, password or token, is
   always withheld. Typed (String) settings are left out of every export unless the player ticks them.
   Undeclared keys and odd hidden values are written as length and hash only.

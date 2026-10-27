@@ -32,7 +32,8 @@ public interface BlackBoxConfig extends Config
 		name = "Record",
 		description = "Record the game while you are logged in: game messages, inventory and other item changes, objects and "
 			+ "NPCs appearing, game values, XP, your animation and position, interfaces opening, your clicks and every "
-			+ "plugin's notifications. Other players' names and chat are never recorded. Each login starts a new recording "
+			+ "plugin's notifications. Other players' names and chat are never written to a recording (pictures show the screen "
+			+ "as it is). Each login starts a new recording "
 			+ "in the Black Box folder; nothing leaves it unless you make a clip. Off stops recording.",
 		position = 1
 	)
