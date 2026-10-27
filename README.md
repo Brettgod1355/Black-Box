@@ -183,7 +183,7 @@ to a plugin.
 
 ### A worked example: the cargo hold count in AFK Shipwrecks
 
-Black Box was made to help develop [AFK Shipwrecks](https://github.com/Brettgod1355/AFK-Shipwrecks), which counts
+Black Box was made to help develop [AFK Shipwrecks](https://runelite.net/plugin-hub/show/cargo-hold-alert), which counts
 what is in a ship's cargo hold while its window is closed. The hold's real contents show only when its window
 opens, so each opening is ground truth: the `items` line the game sends then must equal the count, or the count has
 drifted. The replay test plays every recording through the same code the plugin runs in game and fails on any drift.
