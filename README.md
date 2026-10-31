@@ -10,8 +10,9 @@ tick by tick, and a plugin's own tests can play it back through the plugin's log
 
 ## If a developer asked you to use Black Box
 
-1. **Install Black Box** from the Plugin Hub. It starts recording by itself the next time you log in; there is
-   nothing to switch on.
+1. **Install Black Box.** It is not on the Plugin Hub yet: until it is, build it from source (see
+   [Building and running from source](#building-and-running-from-source)). It starts recording by itself the
+   next time you log in; there is nothing to switch on.
 2. **Play until the problem happens.** When it does, open Black Box's sidebar (the black box icon) and press
    **Mark**. Say in a few words what you saw, and press **Save flag**.
 3. **Press Export…** and pick **The last 10 minutes** (or whatever the developer asked for). Black Box writes one
@@ -105,8 +106,9 @@ The **Debug** page holds extra tests a developer may ask for (below).
 
 Paste this into the issue:
 
-> Install Black Box from the Plugin Hub and open its sidebar (the black box icon). It records on its own. Make
-> the problem happen, press Mark, say what you saw and press Save flag, then press Export…, pick "The last 10
+> Install Black Box (it is not on the Plugin Hub yet: build it from source, the README says how) and open its
+> sidebar (the black box icon). It records on its own. Make the problem happen, press Mark, say what you saw and
+> press Save flag, then press Export…, pick "The last 10
 > minutes", and attach the zip. Its text files hold no chat from other players, no bank PIN and no typed text
 > settings. Pictures go in only if you turn them on, and then show your screen as it was; the README inside says
 > exactly what it holds.
