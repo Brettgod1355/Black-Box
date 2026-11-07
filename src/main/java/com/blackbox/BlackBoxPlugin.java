@@ -157,7 +157,7 @@ public class BlackBoxPlugin extends Plugin
 	private static final Logger log = LoggerFactory.getLogger(BlackBoxPlugin.class);
 
 	/** The version written into every recording's first line. */
-	static final String VERSION = "0.3";
+	static final String VERSION = "1.0";
 
 	/** The Wilderness level as the game writes it on screen (the first line of its HUD text). */
 	static final Pattern WILDERNESS_LEVEL = Pattern.compile("Level: (\\d+)");
