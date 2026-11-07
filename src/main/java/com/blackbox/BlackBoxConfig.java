@@ -161,6 +161,18 @@ public interface BlackBoxConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "debugAtStart",
+		name = "On when the client starts",
+		description = "Switch Debug on whenever the client starts, with the tests ticked on the Debug page.",
+		section = DEBUG,
+		position = 0
+	)
+	default boolean debugAtStart()
+	{
+		return false;
+	}
+
+	@ConfigItem(
 		keyName = "debugOffAtLogout",
 		name = "Also turn off at logout",
 		description = "Switch Debug off when you log out, not only when the client closes. The ticked tests stay ticked.",

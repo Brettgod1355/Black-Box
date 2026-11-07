@@ -96,6 +96,7 @@ The **Debug** page holds extra tests a developer may ask for (below).
 | Screenshots: Width | 960 pixels | Pictures are shrunk to at most this width. |
 | Cleanup: Keep for (days) | 7 | Recordings older than this are deleted. |
 | Cleanup: Size limit (MB) | 500 | Then the oldest are deleted until the rest fit. |
+| Debug: On when the client starts | off | Debug switches on by itself whenever the client starts, with the ticked tests. |
 | Debug: Also turn off at logout | off | Debug switches off at logout, not only when the client closes. |
 
 ---
@@ -147,7 +148,7 @@ marks, with a slider; the file is only read. Click and drag across the chart to 
 ## The Debug page
 
 For a bug that needs more than a normal recording, ask the player to tick the tests you need on the **Debug** page
-(or **Select all**) and switch **Debug** on. The switch is never saved, so it is off whenever the client starts; the
+(or **Select all**) and switch **Debug** on. The switch is never saved, so it is off whenever the client starts unless **On when the client starts** is set; the
 ticks are saved. Tests that are off cost nothing; two are marked as able to cost frames. A `debug` line says when
 Debug was on and which tests ran, so "test off" and "nothing happened" read differently. None of them write while the
 bank PIN keypad shows.

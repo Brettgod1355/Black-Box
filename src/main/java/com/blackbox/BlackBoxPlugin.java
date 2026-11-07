@@ -320,7 +320,11 @@ public class BlackBoxPlugin extends Plugin
 		flushTask = executor.scheduleWithFixedDelay(this::flushQuietly, 1, 1, TimeUnit.SECONDS);
 		Office office = new Office();
 		RecorderSection recorder = new RecorderSection(office);
-		debugOn = false;
+		debugOn = config.debugAtStart();
+		if (debugOn)
+		{
+			live.note(System.currentTimeMillis(), "setting", "Debug on (client start)");
+		}
 		probes = new DebugProbes(client, eventBus, drawManager, new DebugProbes.Sink()
 		{
 			@Override
@@ -397,6 +401,10 @@ public class BlackBoxPlugin extends Plugin
 			.panel(panel)
 			.build();
 		clientToolbar.addNavigation(navButton);
+		if (debugOn)
+		{
+			clientThread.invoke(this::applyDebug);
+		}
 		clientThread.invoke(this::startIfWanted);
 	}
 
